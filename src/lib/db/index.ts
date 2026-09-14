@@ -8,7 +8,12 @@ import Database from "better-sqlite3";
  * Swap this file for a `pg` Pool-based client to move to Postgres later.
  */
 
-const DB_PATH = process.env.MEDSAFE_DB_PATH ?? path.join(process.cwd(), "medsafe.db");
+/** SQLite file location. On Vercel the filesystem is read-only except /tmp
+ * (per-lambda, ephemeral — fine for demo deployments; persistent hosts should
+ * set MEDSAFE_DB_PATH to a mounted disk, e.g. /data/medsafe.db on Render). */
+const DB_PATH =
+  process.env.MEDSAFE_DB_PATH ??
+  (process.env.VERCEL ? "/tmp/medsafe.db" : path.join(process.cwd(), "medsafe.db"));
 
 declare global {
   // eslint-disable-next-line no-var
