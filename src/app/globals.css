@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-50: #f0f5fb;
+  --color-navy-100: #dce7f3;
+  --color-navy-200: #b9cfe6;
+  --color-navy-300: #8aadd3;
+  --color-navy-400: #5a86ba;
+  --color-navy-500: #376799;
+  --color-navy-600: #26507c;
+  --color-navy-700: #1c3f65;
+  --color-navy-800: #142f4e;
+  --color-navy-900: #0a2540;
+  --color-navy-950: #061829;
+
+  --shadow-card: 0 1px 2px rgb(10 37 64 / 0.06), 0 8px 24px -12px rgb(10 37 64 / 0.18);
+  --shadow-soft: 0 1px 3px rgb(10 37 64 / 0.08), 0 12px 32px -16px rgb(10 37 64 / 0.22);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #f6f9fc;
+  color: #0a2540;
+  font-feature-settings: "liga" 1;
+}
+
+/* Scanner sweep animation */
+@keyframes scanline {
+  0% { top: 4%; opacity: 0.15; }
+  45% { opacity: 0.9; }
+  50% { top: 92%; opacity: 0.9; }
+  55% { opacity: 0.5; }
+  100% { top: 4%; opacity: 0.15; }
+}
+.animate-scanline {
+  animation: scanline 2.2s ease-in-out infinite;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fadeUp 0.35s ease-out both;
+}
+
+/* Subtle card gradient used sparingly on hero panels */
+.panel-gradient {
+  background: linear-gradient(135deg, #0a2540 0%, #123a5f 55%, #0d5c63 100%);
+}
+
+::selection {
+  background: #99f6e4;
+  color: #0a2540;
+}

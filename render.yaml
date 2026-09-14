@@ -1,0 +1,33 @@
+# Render.com blueprint for MedSafe (single Next.js service + persistent disk).
+# Deploy: Render Dashboard → New → Blueprint → point at this repo, Render reads render.yaml.
+services:
+  - type: web
+    name: medsafe
+    runtime: node
+    plan: free
+    branch: main
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: medsafe-data
+      diskGB: 1
+      mountPath: /data
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MEDSAFE_DB_PATH
+        value: /data/medsafe.db
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false # set to your Render URL (e.g. https://medsafe.onrender.com) after first deploy
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: MEDSAFE_AI_API_KEY
+        sync: false
+      - key: MEDSAFE_OCR_API_KEY
+        sync: false
+      - key: MEDSAFE_BARCODE_API_KEY
+        sync: false
