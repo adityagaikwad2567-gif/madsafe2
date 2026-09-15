@@ -25,14 +25,30 @@ export function verifyPassword(plain: string, hash: string): boolean {
   return bcrypt.compareSync(plain, hash);
 }
 
+/**
+ * Stateless signed sessions.
+ *
+ * Serverless hosts (Vercel) give each lambda instance its own ephemeral SQLite
+ * file in /tmp, so DB-backed session rows silently vanish between requests and
+ * logged-in users get bounced back to the login page. The cookie therefore
+ * carries its own proof: `v2.<userId>.<expiresMs>.<hmac>` signed with
+ * SESSION_SECRET. Verification hits only the stable `users` table, so
+ * deactivating a user still revokes their access instantly.
+ *
+ * Set SESSION_SECRET in production (any long random string). Locally it is
+ * random per boot — sessions simply reset when the dev server restarts.
+ */
+const SESSION_SECRET =
+  process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString("hex");
+
+function sign(payload: string): string {
+  return crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url");
+}
+
 export function createSession(userId: number): string {
-  const db = getDb();
-  // Hygiene: expired sessions are garbage-collected whenever a new one is created.
-  db.prepare("DELETE FROM sessions WHERE expires_at <= datetime('now')").run();
-  const token = crypto.randomBytes(32).toString("hex");
-  const expires = new Date(Date.now() + SESSION_DAYS * 86400_000).toISOString();
-  db.prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?,?,?)").run(token, userId, expires);
-  return token;
+  const expiresMs = Date.now() + SESSION_DAYS * 86400_000;
+  const payload = `v2.${userId}.${expiresMs}`;
+  return `${payload}.${sign(payload)}`;
 }
 
 export async function setSessionCookie(token: string): Promise<void> {
@@ -52,14 +68,24 @@ export async function clearSessionCookie(): Promise<void> {
 }
 
 export function getSessionUserByToken(token: string): SessionUser | null {
+  const parts = token.split(".");
+  if (parts.length !== 4 || parts[0] !== "v2") return null;
+  const [, userIdRaw, expiresRaw, mac] = parts;
+  const expected = sign(`v2.${userIdRaw}.${expiresRaw}`);
+  const a = Buffer.from(mac);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  const expiresMs = Number(expiresRaw);
+  if (!Number.isFinite(expiresMs) || expiresMs <= Date.now()) return null;
+  const userId = Number(userIdRaw);
+  if (!Number.isInteger(userId)) return null;
   const db = getDb();
   const row = db
     .prepare(
-      `SELECT u.id, u.name, u.email, u.role, u.language, u.cycle_enabled, u.cycle_start, u.cycle_length
-       FROM sessions s JOIN users u ON u.id = s.user_id
-       WHERE s.token = ? AND s.expires_at > datetime('now') AND ifnull(u.active,1) = 1`
+      `SELECT id, name, email, role, language, cycle_enabled, cycle_start, cycle_length
+       FROM users WHERE id = ? AND ifnull(active,1) = 1`
     )
-    .get(token) as SessionUser | undefined;
+    .get(userId) as SessionUser | undefined;
   return row ?? null;
 }
 
@@ -71,9 +97,9 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   return getSessionUserByToken(token);
 }
 
-export function destroySession(token: string): void {
-  const db = getDb();
-  db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+/** Logout is cookie-clearing; the signed token simply expires unused. */
+export function destroySession(_token: string): void {
+  // No server-side state to remove by design (see createSession above).
 }
 
 export function validatePassword(pw: string): string | null {

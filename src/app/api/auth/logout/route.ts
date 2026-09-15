@@ -5,7 +5,7 @@ import { clearSessionCookie, destroySession, SESSION_COOKIE } from "@/lib/auth";
 export async function POST() {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
-  if (token) destroySession(token);
+  if (token) destroySession(token); // no-op by design: stateless signed session
   await clearSessionCookie();
   return NextResponse.json({ ok: true });
 }

@@ -69,15 +69,14 @@ export async function PATCH(req: NextRequest) {
   if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
   db.prepare("UPDATE users SET active = ? WHERE id = ?").run(active ? 1 : 0, id);
-  if (!active) {
-    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
-  }
+  // Signed-session note: deactivation takes effect immediately because every
+  // request re-checks users.active — no session rows to purge.
   db.prepare("INSERT INTO audit_log (actor, action, entity, entity_id, details) VALUES (?,?,?,?,?)").run(
     admin.email,
     active ? "user.reactivate" : "user.deactivate",
     "user",
     String(id),
-    JSON.stringify({ sessionsDestroyed: !active })
+    JSON.stringify({ immediate: true })
   );
 
   return NextResponse.json({ ok: true });
