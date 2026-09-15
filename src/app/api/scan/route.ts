@@ -6,10 +6,10 @@ import { identifyByBarcode, identifyByText } from "@/lib/scan-pipeline";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 const Body = z.object({
-  mode: z.enum(["camera", "upload", "barcode", "manual", "voice", "demo"]),
-  query: z.string().max(200).optional(),
-  barcode: z.string().max(32).optional(),
-  uncertain: z.boolean().optional(),
+  mode: z.enum(["camera", "upload", "barcode", "manual", "voice"]),
+  query: z.string().max(2000).optional(),
+  barcode: z.string().max(64).optional(),
+  ocrConfidence: z.number().min(0).max(1).optional(),
 });
 
 export async function POST(req: Request) {
@@ -26,11 +26,11 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid scan payload." }, { status: 400 });
 
-  const { mode, query, barcode, uncertain } = parsed.data;
+  const { mode, query, barcode, ocrConfidence } = parsed.data;
   const result =
     mode === "barcode" && barcode
       ? identifyByBarcode(barcode)
-      : identifyByText(query ?? "", mode === "demo" ? "upload" : mode, { simulateUncertain: uncertain });
+      : identifyByText(query ?? "", mode, { ocrConfidence });
 
   // Privacy-friendly history: user_id stays NULL for anonymous scans; only method + query are kept.
   const db = getDb();
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     .run(
       user?.id ?? null,
       result.candidates[0] ? (db.prepare("SELECT id FROM medicines WHERE slug = ?").get(result.candidates[0].slug) as { id: number } | undefined)?.id ?? null : null,
-      mode === "demo" ? "upload" : mode,
+      mode,
       query ?? barcode ?? null,
       result.confidence,
       result.status === "identified" ? 1 : 0

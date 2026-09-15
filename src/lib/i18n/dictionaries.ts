@@ -57,9 +57,8 @@ const en: Dict = {
   "scan.steps": "Pipeline",
   "scan.identified": "Medicine identified",
   "scan.uncertain": "Medicine could not be confidently identified. Please upload a clearer image or search manually.",
-  "scan.notfound": "No match found in the demo database.",
+  "scan.notfound": "No match found in the verified database.",
   "scan.confidence": "Match confidence",
-  "scan.demoNote": "Prototype OCR simulation — production will use real OCR/barcode services.",
 
   "med.ingredients": "Active ingredients",
   "med.uses": "Uses",
@@ -232,9 +231,8 @@ const hi: Dict = {
   "scan.steps": "पाइपलाइन",
   "scan.identified": "दवा पहचानी गई",
   "scan.uncertain": "दवा की पुष्टि नहीं हो सकी। कृपया साफ छवि अपलोड करें या खोज का उपयोग करें।",
-  "scan.notfound": "डेमो डेटाबेस में कोई मैच नहीं मिला।",
+  "scan.notfound": "सत्यापित डेटाबेस में कोई मैच नहीं मिला।",
   "scan.confidence": "मैच विश्वास",
-  "scan.demoNote": "प्रोटोटाइप OCR सिमुलेशन — प्रोडक्शन में असली OCR/बारकोड सेवा होगी।",
 
   "med.ingredients": "सक्रिय तत्व",
   "med.uses": "उपयोग",
@@ -403,9 +401,8 @@ const mr: Dict = {
   "scan.steps": "पाइपलाइन",
   "scan.identified": "औषध ओळखले गेले",
   "scan.uncertain": "औषधाची खात्री बाळगता येत नाही. कृपया स्पष्ट प्रतिमा अपलोड करा किंवा मॅन्युअली शोधा.",
-  "scan.notfound": "डेमो डेटाबेसमध्ये जुळणारे औषध सापडले नाही.",
+  "scan.notfound": "सत्यापित डेटाबेसमध्ये जुळणारे औषध सापडले नाही.",
   "scan.confidence": "जुळणी विश्वास",
-  "scan.demoNote": "प्रोटोटाइप OCR सिम्युलेशन — प्रोडक्शनमध्ये खरी OCR/बारकोड सेवा असेल.",
 
   "med.ingredients": "सक्रिय घटक",
   "med.uses": "वापर",

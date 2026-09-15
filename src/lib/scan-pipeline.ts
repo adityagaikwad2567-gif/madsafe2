@@ -1,12 +1,12 @@
 import { getDb } from "@/lib/db";
 
 /**
- * Scan identification pipeline.
+ * Scan identification pipeline — real input, deterministic matching.
  *
- * In production this stage would call an OCR engine (e.g. Google Vision / Tesseract)
- * and a barcode decoder (e.g. ZXing) — see README > Future features.
- * For the prototype we simulate OCR/barcode and resolve against the medicines
- * table using token-overlap scoring with honest, never-100% confidence.
+ * The browser client performs REAL barcode decoding (ZXing / BarcodeDetector)
+ * and REAL on-device OCR (tesseract.js) and sends the recognized text or code
+ * here. This module never invents input: an empty or low-signal extraction
+ * honestly returns "uncertain" and never falls back to a demo medicine.
  */
 
 export type ScanStep = { label: string; detail: string; status: "done" | "pending" };
@@ -23,12 +23,11 @@ export type ScanCandidate = {
 export type ScanResult = {
   status: "identified" | "uncertain" | "not_found";
   message: string;
-  confidence: number | null; // 0..1, always < 1 in demo mode
+  confidence: number | null; // 0..1, never presented as certainty
   candidates: ScanCandidate[];
-  method: "camera" | "upload" | "barcode" | "manual" | "voice" | "demo";
+  method: "camera" | "upload" | "barcode" | "manual" | "voice";
   steps: ScanStep[];
   ocrText: string[];
-  demoNote?: string;
 };
 
 export const SCAN_STEPS = [
@@ -57,11 +56,12 @@ function tokenize(s: string): string[] {
 
 export function identifyByBarcode(code: string): ScanResult {
   const db = getDb();
+  const trimmed = code.trim();
   const med = db
     .prepare(
       "SELECT slug, name, brand_name, generic_name, manufacturer, strength FROM medicines WHERE barcode = ?"
     )
-    .get(code.trim()) as ScanCandidate | undefined;
+    .get(trimmed) as ScanCandidate | undefined;
 
   const steps = buildSteps(5);
   if (med) {
@@ -72,24 +72,29 @@ export function identifyByBarcode(code: string): ScanResult {
       candidates: [med],
       method: "barcode",
       steps,
-      ocrText: [`EAN-13: ${code.trim()}`],
+      ocrText: [`Decoded barcode: ${trimmed}`],
     };
   }
   return {
     status: "not_found",
-    message: "Barcode not found in the demo database. Try manual search or add the medicine via the admin panel.",
+    message:
+      "Barcode decoded successfully, but it is not in the verified database. Try manual search — and remember a barcode cannot prove a medicine is genuine.",
     confidence: null,
     candidates: [],
     method: "barcode",
     steps,
-    ocrText: [`EAN-13: ${code.trim()}`],
+    ocrText: [`Decoded barcode: ${trimmed}`],
   };
 }
 
+/**
+ * Match OCR/typed text against the medicines table using token-overlap scoring.
+ * `ocrConfidence` (0..1, from tesseract.js) downgrades results from noisy reads.
+ */
 export function identifyByText(
   query: string,
   method: ScanResult["method"],
-  opts?: { simulateUncertain?: boolean }
+  opts?: { ocrConfidence?: number }
 ): ScanResult {
   const db = getDb();
   const tokens = tokenize(query);
@@ -98,12 +103,13 @@ export function identifyByText(
   if (tokens.length === 0) {
     return {
       status: "uncertain",
-      message: "Medicine could not be confidently identified. Please upload a clearer image or search manually.",
+      message:
+        "No readable medicine text was recognized. Please retake the photo with the package name in focus, or search manually.",
       confidence: null,
       candidates: [],
       method,
       steps,
-      ocrText: [],
+      ocrText: query.trim() ? [`Recognized text: "${query.trim().slice(0, 120)}"`] : [],
     };
   }
 
@@ -124,42 +130,45 @@ export function identifyByText(
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
 
-  // Demo escape hatch: OCR produced unreadable text → honest uncertainty
-  if (opts?.simulateUncertain || /blurry|unclear|unclear|unreadable/i.test(query)) {
-    return {
-      status: "uncertain",
-      message: "Medicine could not be confidently identified. Please upload a clearer image or search manually.",
-      confidence: null,
-      candidates: [],
-      method,
-      steps,
-      ocrText: ["Recognised text: '?????' (low quality image)"],
-      demoNote: "Prototype OCR fallback — no identification is forced when the image quality is poor.",
-    };
-  }
-
   if (scored.length === 0 || scored[0].score < 0.35) {
     return {
       status: "not_found",
-      message: "No matching medicine found in the demo database. Try a different name or spelling.",
+      message:
+        "No matching medicine found in the verified database. Check the spelling or try manual search. MedSafe never guesses an unidentified medicine.",
       confidence: null,
       candidates: [],
       method,
       steps,
-      ocrText: [`Recognised text: "${query}"`],
+      ocrText: [`Recognized text: "${query.trim().slice(0, 120)}"`],
     };
   }
 
   const top = scored[0];
   const capped = top.med.verification === "verified" ? Math.min(0.92, top.score) : Math.min(0.55, top.score);
+  // Noisy OCR (low mean word confidence) must not masquerade as a confident match.
+  const ocrPenalty = typeof opts?.ocrConfidence === "number" ? Math.max(0.5, opts.ocrConfidence) : 1;
+  const finalConfidence = Math.round(capped * ocrPenalty * 100) / 100;
+
+  if (finalConfidence < 0.35) {
+    return {
+      status: "uncertain",
+      message:
+        "The recognized text was too unclear for a confident match. Please review or retype the name below.",
+      confidence: null,
+      candidates: [],
+      method,
+      steps,
+      ocrText: [`Recognized text: "${query.trim().slice(0, 120)}"`],
+    };
+  }
+
   return {
     status: "identified",
-    message: `Matched against the ${top.med.verification} demo database record.`,
-    confidence: Math.round(capped * 100) / 100,
+    message: `Matched against the ${top.med.verification} database record.`,
+    confidence: finalConfidence,
     candidates: scored.map((s) => s.med),
     method,
     steps,
-    ocrText: [`Recognised text: "${query}"`],
-    demoNote: "Prototype OCR simulation — production build will call a real OCR/barcode service.",
+    ocrText: [`Recognized text: "${query.trim().slice(0, 120)}"`],
   };
 }
