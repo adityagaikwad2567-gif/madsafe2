@@ -13,7 +13,9 @@ Date: 2026-09-13 (local battery) · **Live re-run: 2026-09-15 against the produc
 | PWA manifest | ✅ 200 |
 | Search API (`?q=dolo`) | ✅ returns seeded verified records |
 | Register + session (`/api/auth/me`) | ✅ user id issued, session valid |
-| Admin login (rotated production credential) | ✅ 200 |
+| Admin login (`adityagaikwad2567@gmail.com`) | ✅ 200, session valid, `/admin` renders |
+| Scan text match (`Dolo 650` via manual mode) | ✅ `identified`, confidence 0.92 |
+| Real scanner rebuild (camera + barcode + on-device OCR, no demo fallback) | ✅ deployed 2026-09-15 |
 | Admin guard: anon / normal user / admin → `/api/admin/users` | ✅ denied / 403 / 200 |
 | Scan contract (unknown barcode) | ✅ honest `uncertain` + manual-search guidance |
 | AI explainer (Dolo 650) | ✅ verified-DB answer, no invented facts |

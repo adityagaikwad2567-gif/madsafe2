@@ -51,7 +51,8 @@ Demo accounts (also shown on the login page):
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | `admin@medsafe.local` | `Admin@1234` |
+| Admin (live site) | `adityagaikwad2567@gmail.com` | set via the `ADMIN_PASSWORD` env var in Vercel — never committed here |
+| Admin (local dev) | `admin@medsafe.local` | `Admin@1234` |
 | User | `demo@medsafe.local` | `Demo@1234` |
 
 > Change the admin password before any demo/deployment by setting `ADMIN_PASSWORD` (see §6) **before first boot**, or
@@ -74,7 +75,7 @@ Copy `.env.example` to `.env.local` and adjust. **No secrets are hard-coded and 
 
 ```ini
 # Admin account seeded on first boot
-ADMIN_EMAIL=admin@medsafe.local
+ADMIN_EMAIL=adityagaikwad2567@gmail.com
 ADMIN_PASSWORD=change-me-before-demo
 
 # SQLite database file location (optional)
