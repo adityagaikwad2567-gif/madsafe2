@@ -1,5 +1,28 @@
 # MedSafe Testing Report
 
+Date: 2026-09-13 (local battery) · **Live re-run: 2026-09-15 against the production deployment on Vercel**
+**Live URL:** https://medsafe-adityagaikwad2567-gifs-projects.vercel.app (alias: https://medsafe-one.vercel.app)
+
+## 0. Live production smoke test (2026-09-15) — ALL PASS
+
+| Check | Result |
+| --- | --- |
+| Pages: `/`, `/medicines`, `/scan`, `/ai`, `/cyclesafe`, `/medicines/dolo-650`, `/offline` | ✅ 200 |
+| Custom 404 (unknown slug + unknown page) | ✅ 404 |
+| `GET /api/health` | ✅ `{"status":"ok","database":"ok"}` |
+| PWA manifest | ✅ 200 |
+| Search API (`?q=dolo`) | ✅ returns seeded verified records |
+| Register + session (`/api/auth/me`) | ✅ user id issued, session valid |
+| Admin login (rotated production credential) | ✅ 200 |
+| Admin guard: anon / normal user / admin → `/api/admin/users` | ✅ denied / 403 / 200 |
+| Scan contract (unknown barcode) | ✅ honest `uncertain` + manual-search guidance |
+| AI explainer (Dolo 650) | ✅ verified-DB answer, no invented facts |
+| `localhost` references in served HTML | ✅ 0 |
+
+Deployment notes live in [`DEPLOYMENT.md`](DEPLOYMENT.md) §8.
+
+---
+
 Date: 2026-09-13 · Environment: Windows, Node 24, production build (`next build` + `next start`), SQLite `medsafe.db`.
 Method: automated curl/Node assertion battery against the running production server + database-level assertions.
 

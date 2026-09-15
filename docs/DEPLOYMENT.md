@@ -92,17 +92,37 @@ Configuration already handled in-repo: `next.config.ts` traces `schema.sql` into
 bundle and redirects SQLite writes to `/tmp` when `VERCEL=1`; `metadataBase`/robots/sitemap derive
 from `NEXT_PUBLIC_SITE_URL` or `VERCEL_URL`, so no localhost URLs are emitted.
 
-## 8. Actual deployment status
+## 8. Actual deployment status — LIVE on Vercel
 
-- **Deployment attempt (this session):** the sandbox has the Vercel CLI but no account credentials;
-  `vercel deploy --temporary` requires login or `--token`, and no Supabase/Render/Railway keys exist
-  in the environment. A real public URL therefore requires one credential from the team — the exact
-  one-liner is in the chat handoff. Everything else (build, configs, env handling, fresh-boot
-  seeding) is verified and waiting.
-- **Repository:** initialized on `main`, initial commit `a517c20`, working tree clean — push-ready
-  for GitHub → Render blueprint import (`git remote add origin <url> && git push -u origin main`).
-- **First-boot production simulation: PASSED.** With an empty database directory and
-  `NEXT_PUBLIC_SITE_URL=https://…` set, the production server self-migrated, self-seeded, created
-  the admin account, and served health `database:"ok"`, correct robots.txt/sitemap.xml (zero
-  localhost references), and a working admin login on the first request.
+**Deployed: 2026-09-15** — Production environment, Vercel Hobby plan.
+
+| Item | Value |
+| --- | --- |
+| Production URL | https://medsafe-adityagaikwad2567-gifs-projects.vercel.app |
+| Short alias | https://medsafe-one.vercel.app |
+| Health endpoint | `GET /api/health` → `{"status":"ok","service":"medsafe","database":"ok"}` |
+| Framework setting | `nextjs` (fixed via API after a stray `vercel.json` briefly set it to `services`) |
+| Deployment protection | Disabled — public access verified with curl |
+| Env vars | `NEXT_PUBLIC_SITE_URL`, `NPM_CONFIG_PRODUCTION=false`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (rotated, secret) |
+
+Post-deploy smoke test (all passed against the production URL): home/search/scan/ai/cyclesafe/profile
+pages 200 · health green · unknown slug 404 · PWA manifest 200 · `/offline` 200 · search API returns
+seeded records · user register+session OK · admin login with rotated credential OK · admin API guard
+(401 anon / 403 user / 200 admin) · scan `uncertain` fallback contract OK · AI answers from verified DB
+only · zero `localhost` references in served HTML.
+
+Fixed during deployment:
+
+1. Project framework had been flipped to `services` by an early malformed `vercel.json` (file deleted;
+   project patched back to `nextjs` via the Vercel API — deploys failed with
+   "no services are declared" until this was corrected).
+2. `better-sqlite3` 13.x has no win32-x64 prebuild for Node 24 — local dev pins **12.4.1** (ships
+   `node-v137` prebuilds). Vercel's Linux builds compile fine either way.
+3. `xlsx` swapped to the patched SheetJS CDN build 0.20.3 (`npm audit` → 0 vulnerabilities).
+4. `NPM_CONFIG_PRODUCTION=false` kept because the project intentionally ships build-critical
+   packages in `dependencies` (see commit `13aa7a8`).
+
+Earlier session record (superseded): repository initialized on `main` — push-ready for a GitHub →
+Render blueprint import. First-boot production simulation passed before the real deploy (empty DB →
+self-migrate → self-seed → admin login → health `database:"ok"` → clean robots/sitemap).
 - Until a URL is recorded here, **no live deployment exists** — no claim of one is made (honesty rules).

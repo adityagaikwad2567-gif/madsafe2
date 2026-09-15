@@ -248,12 +248,24 @@ npm run db:reset         # delete the DB (fresh reseed on next boot)
 npm run typecheck        # tsc --noEmit
 ```
 
+### Live deployment
+
+**MedSafe is deployed on Vercel (Production):**
+
+- **App:** https://medsafe-adityagaikwad2567-gifs-projects.vercel.app
+- **Short alias:** https://medsafe-one.vercel.app
+- **Health check:** `GET /api/health` → `{"status":"ok","database":"ok"}`
+
+The production admin password was rotated at deploy time (stored as a Vercel secret; not committed
+anywhere). To rotate it: `vercel env rm ADMIN_PASSWORD production` → `vercel env add ADMIN_PASSWORD production`
+→ redeploy (the SQLite store re-seeds its admin from these env vars on cold start).
+
 ### Deploy (step-by-step)
 
 Detailed, copy-paste instructions per platform: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Summary:
 
-1. **Vercel (recommended):** import the repo, add env vars from §4, deploy. Note Vercel's serverless filesystem
-   is ephemeral — for a persistent demo use Render/Railway below, or attach Postgres and set `DATABASE_URL`.
+1. **Vercel (done — live, see above):** import the repo, add env vars from §4, deploy. Note Vercel's serverless
+   filesystem is ephemeral — for persistent data use Render/Railway below, or attach Postgres and set `DATABASE_URL`.
 2. **Render / Railway (persistent SQLite):** Node service, build `npm run build`, start `npm start`,
    set `MEDSAFE_DB_PATH=/data/medsafe.db` with a persistent disk. Health check path: `/api/health`.
 3. **Docker-ready:** the app is a standard Node server; a minimal `Dockerfile` is a copy + `npm ci --omit=dev` +

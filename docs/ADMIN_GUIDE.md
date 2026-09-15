@@ -5,7 +5,8 @@ Audience: competition reviewers and the team member playing "data steward".
 ## Signing in
 
 Go to **/login** and use the admin account (seeded on first boot from `ADMIN_EMAIL` /
-`ADMIN_PASSWORD`, default `admin@medsafe.local` / `Admin@1234`). Admins land on **/admin**;
+`ADMIN_PASSWORD`, default `admin@medsafe.local` / `Admin@1234` locally; **the live Vercel deployment
+uses a rotated password** stored only as a Vercel secret — see `DEPLOYMENT.md` §8). Admins land on **/admin**;
 every `/api/admin/*` route re-checks the role server-side — a normal user session gets `403`.
 
 ## Dashboard tabs
