@@ -6,7 +6,11 @@ import Link from "next/link";
 import { ScanLine, LogIn, UserPlus, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui";
 
-export function AuthForms() {
+export function AuthForms({
+  demoAdmin,
+}: {
+  demoAdmin?: { email: string; password: string };
+}) {
   const params = useSearchParams();
   const next = params.get("next") ?? "/";
   const [tab, setTab] = useState<"login" | "register">("login");
@@ -101,7 +105,11 @@ export function AuthForms() {
           <ShieldCheck size={13} className="text-teal-600" /> Demo accounts
         </p>
         <p className="mt-1">User — demo@medsafe.local · Demo@1234</p>
-        <p>Admin — admin@medsafe.local · Admin@1234 (see README to change)</p>
+        {demoAdmin ? (
+          <p>
+            Admin — {demoAdmin.email} · {demoAdmin.password}
+          </p>
+        ) : null}
       </div>
 
       <p className="mt-4 text-center text-xs text-slate-400">
