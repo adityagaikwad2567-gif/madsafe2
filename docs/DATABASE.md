@@ -72,3 +72,20 @@ npm run db:backup                       # consistent snapshot while the server r
 ```
 
 Back up on a schedule in production (daily cron is sufficient for the demo profile).
+
+## Cloud persistence (Vercel Blob snapshots)
+
+`src/lib/db/persistence.ts` keeps the serverless deployment durable:
+
+- **Boot** (`src/instrumentation.ts`): the latest snapshot (`dbsnapshots/medsafe-latest.db`) is
+  downloaded from the private Blob store `medsafe-data`, integrity-checked (`SQLite format 3`
+  magic, minimum size), and written to the DB path **before** `seedIfEmpty()` runs — so imported
+  records are never overwritten by demo data. Seeding only fills an empty database.
+- **Write** (`flushSnapshot()`): every mutating API route (imports, medicine/source/ingredient/
+  interaction CRUD, registration, reports, cabinet, reminders, scans, admin actions) calls it after
+  commit. Concurrent flushes coalesce into one in-flight upload; failures are logged, never thrown.
+- **WAL safety**: flush checkpoints the write-ahead log into the main file first, so the uploaded
+  file is a complete, consistent database.
+- Local dev (no `BLOB_READ_WRITE_TOKEN`) is unaffected — persistence is a no-op.
+
+Verified live: an admin import survived a full production redeploy (fresh lambda, empty `/tmp`).

@@ -33,9 +33,13 @@ Required env in production:
 
 1. Import the repo, framework auto-detected (Next.js). Add the env vars in Project → Settings → Environment Variables.
 2. Deploy — `next build` runs automatically.
-3. **Caveat:** Vercel's filesystem is ephemeral; SQLite resets per instance. For real persistence on
-   Vercel, attach a managed Postgres (Neon/Supabase), set `DATABASE_URL`, and switch the DB client per
-   `docs/DATABASE.md` §PostgreSQL migration. For a pure demo, Vercel works as-is (data resets on redeploy).
+3. **Persistence (active since Sep 2026):** the SQLite database is snapshotted to **Vercel Blob** after
+   every write and restored on boot, so admin imports and user data survive cold starts and redeploys.
+   Setup: a private Blob store named `medsafe-data` connected to the project (creates
+   `BLOB_READ_WRITE_TOKEN` automatically). Without the token, persistence silently disables and the
+   app behaves as the old ephemeral `/tmp` demo. Multi-instance caveat: concurrent lambdas can race
+   (last flush wins) — acceptable for the demo profile; real Postgres remains the upgrade path
+   (`docs/DATABASE.md` §PostgreSQL migration).
 4. Set a custom domain; HTTPS is automatic (session cookies are `Secure` in production).
 
 ## 3. Docker / any Node host
