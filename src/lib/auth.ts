@@ -38,8 +38,19 @@ export function verifyPassword(plain: string, hash: string): boolean {
  * Set SESSION_SECRET in production (any long random string). Locally it is
  * random per boot — sessions simply reset when the dev server restarts.
  */
+// In production this MUST come from the environment: Next.js can load this
+// module once per bundle (pages vs route handlers), and a random per-boot
+// fallback would then differ between them — logins would work for /api routes
+// but fail verification in server components. A fixed dev default keeps local
+// logins consistent across bundles.
 const SESSION_SECRET =
-  process.env.SESSION_SECRET ?? crypto.randomBytes(32).toString("hex");
+  process.env.SESSION_SECRET ??
+  (process.env.NODE_ENV === "production"
+    ? (() => {
+        console.warn("[medsafe:auth] SESSION_SECRET is not set — using an insecure default. Set it in your hosting environment.");
+        return "medsafe-insecure-default-set-SESSION_SECRET";
+      })()
+    : "medsafe-dev-secret-do-not-use-in-production");
 
 function sign(payload: string): string {
   return crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url");
