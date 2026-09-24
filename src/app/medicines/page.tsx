@@ -6,6 +6,10 @@ import { MedicineSearchBox } from "@/components/medicine-search-box";
 
 export const metadata = { title: "Medicine Database" };
 
+// Always render fresh from the database — this page previously prerendered
+// at build time, so admin imports never appeared on warm server instances.
+export const dynamic = "force-dynamic";
+
 type Row = {
   slug: string;
   name: string;

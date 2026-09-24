@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(req: Request) {
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
     parsed.data.time_of_day,
     parsed.data.label ?? null
   );
+  flushSnapshot();
   return NextResponse.json({ ok: true });
 }
 
@@ -66,5 +68,6 @@ export async function DELETE(req: Request) {
     .get(id, user.id, user.id);
   if (!row) return NextResponse.json({ error: "Not found." }, { status: 404 });
   db.prepare("DELETE FROM reminders WHERE id = ?").run(id);
+  flushSnapshot();
   return NextResponse.json({ ok: true });
 }

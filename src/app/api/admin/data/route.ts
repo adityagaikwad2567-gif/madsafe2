@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 
 /**
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
       String(body.last_checked ?? "").trim() || new Date().toISOString().slice(0, 10),
       ["verified", "pending", "rejected"].includes(String(body.verification_status)) ? String(body.verification_status) : "pending");
     audit(user.email, "source.create", "source", String(r.lastInsertRowid), { title });
+    flushSnapshot();
     return NextResponse.json({ ok: true, id: r.lastInsertRowid });
   }
 
@@ -107,6 +109,7 @@ export async function POST(req: NextRequest) {
     ).run(name, String(body.name_hi ?? "").trim() || null, String(body.name_mr ?? "").trim() || null,
       String(body.description ?? "").trim() || null, uniq);
     audit(user.email, "ingredient.create", "ingredient", String(r.lastInsertRowid), { name });
+    flushSnapshot();
     return NextResponse.json({ ok: true, id: r.lastInsertRowid });
   }
 
@@ -129,6 +132,7 @@ export async function POST(req: NextRequest) {
       "INSERT INTO interactions (ingredient_a, ingredient_b, severity, interaction_type, description, source_id) VALUES (?,?,?,?,?,?)"
     ).run(x, y, severity, String(body.interaction_type ?? "").trim() || null, description, sourceId);
     audit(user.email, "interaction.create", "interaction", String(r.lastInsertRowid), { a: x, b: y, severity });
+    flushSnapshot();
     return NextResponse.json({ ok: true, id: r.lastInsertRowid });
   }
 
@@ -167,6 +171,7 @@ export async function PATCH(req: NextRequest) {
       patch.last_checked?.trim() || null, vs ?? null, id
     );
     audit(user.email, "source.update", "source", String(id), patch);
+    flushSnapshot();
     return NextResponse.json({ ok: true });
   }
 
@@ -178,6 +183,7 @@ export async function PATCH(req: NextRequest) {
     ).run(patch.name?.trim() || null, patch.name_hi?.trim() || null, patch.name_mr?.trim() || null,
       patch.description?.trim() || null, id);
     audit(user.email, "ingredient.update", "ingredient", String(id), patch);
+    flushSnapshot();
     return NextResponse.json({ ok: true });
   }
 
@@ -191,6 +197,7 @@ export async function PATCH(req: NextRequest) {
        description = ifnull(?, description) WHERE id = ?`
     ).run(patch.severity ?? null, patch.interaction_type?.trim() || null, patch.description?.trim() || null, id);
     audit(user.email, "interaction.update", "interaction", String(id), patch);
+    flushSnapshot();
     return NextResponse.json({ ok: true });
   }
 
@@ -213,6 +220,7 @@ export async function DELETE(req: NextRequest) {
     }
     db.prepare("DELETE FROM sources WHERE id = ?").run(id);
     audit(user.email, "source.delete", "source", String(id), {});
+    flushSnapshot();
     return NextResponse.json({ ok: true });
   }
   if (entity === "ingredients") {
@@ -222,11 +230,13 @@ export async function DELETE(req: NextRequest) {
     }
     db.prepare("DELETE FROM active_ingredients WHERE id = ?").run(id);
     audit(user.email, "ingredient.delete", "ingredient", String(id), {});
+    flushSnapshot();
     return NextResponse.json({ ok: true });
   }
   if (entity === "interactions") {
     db.prepare("DELETE FROM interactions WHERE id = ?").run(id);
     audit(user.email, "interaction.delete", "interaction", String(id), {});
+    flushSnapshot();
     return NextResponse.json({ ok: true });
   }
   return NextResponse.json({ error: "entity must be sources|ingredients|interactions" }, { status: 400 });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 
 async function requireAdmin() {
@@ -45,5 +46,6 @@ export async function PATCH(req: Request) {
   sets.push("updated_at = datetime('now')");
   args.push(parsed.data.id);
   db.prepare(`UPDATE reports SET ${sets.join(", ")} WHERE id = ?`).run(...(args as never[]));
+  flushSnapshot();
   return NextResponse.json({ ok: true });
 }

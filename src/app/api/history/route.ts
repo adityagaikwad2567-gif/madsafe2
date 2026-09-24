@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
@@ -21,5 +22,6 @@ export async function DELETE() {
   if (!user) return NextResponse.json({ error: "Login required." }, { status: 401 });
   const db = getDb();
   db.prepare("DELETE FROM scan_history WHERE user_id = ?").run(user.id);
+  flushSnapshot();
   return NextResponse.json({ ok: true });
 }

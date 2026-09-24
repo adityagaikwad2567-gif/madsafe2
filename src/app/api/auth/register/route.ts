@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { createSession, hashPassword, setSessionCookie, validateEmail, validatePassword } from "@/lib/auth";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
   const info = db
     .prepare("INSERT INTO users (name, email, password_hash, role, language) VALUES (?,?,?, 'user', 'en')")
     .run(name.trim(), email.toLowerCase(), hashPassword(password));
+  flushSnapshot();
   const userId = Number(info.lastInsertRowid);
 
   const token = createSession(userId);

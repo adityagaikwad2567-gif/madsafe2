@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 import { identifyByBarcode, identifyByText } from "@/lib/scan-pipeline";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
       result.confidence,
       result.status === "identified" ? 1 : 0
     );
+  flushSnapshot();
 
   return NextResponse.json(result);
 }

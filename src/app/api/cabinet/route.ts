@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, jsonArray } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 import { getServerLang } from "@/lib/i18n/server";
 import { analyzeMedicine, crossMedicineChecks, expiryStatus, getMedicineIngredients, type IngredientRow } from "@/lib/safety-engine";
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
       "INSERT INTO user_medicines (user_id, medicine_id, expiry_date, batch_no, pack_size, notes) VALUES (?,?,?,?,?,?)"
     )
     .run(user.id, med.id, expiry, parsed.data.batch_no ?? null, parsed.data.pack_size ?? null, parsed.data.notes ?? null);
+  flushSnapshot();
 
   return NextResponse.json({ ok: true, umId: Number(info.lastInsertRowid) });
 }
@@ -103,5 +105,6 @@ export async function DELETE(req: Request) {
     .get(umId, user.id) as { id: number } | undefined;
   if (!row) return NextResponse.json({ error: "Item not found in your cabinet." }, { status: 404 });
   db.prepare("DELETE FROM user_medicines WHERE id = ?").run(umId);
+  flushSnapshot();
   return NextResponse.json({ ok: true });
 }

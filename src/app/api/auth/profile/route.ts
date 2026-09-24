@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 
 const Body = z.object({
@@ -41,6 +42,7 @@ export async function PATCH(req: Request) {
 
   values.push(user.id);
   db.prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`).run(...(values as never[]));
+  flushSnapshot();
 
   return NextResponse.json({ ok: true });
 }
@@ -51,5 +53,6 @@ export async function DELETE(req: Request) {
   if (!user) return NextResponse.json({ error: "Login required." }, { status: 401 });
   const db = getDb();
   db.prepare("DELETE FROM users WHERE id = ?").run(user.id);
+  flushSnapshot();
   return NextResponse.json({ ok: true, deleted: true });
 }

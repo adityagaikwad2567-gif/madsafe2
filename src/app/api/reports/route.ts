@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
       parsed.data.pharmacy ?? null,
       parsed.data.location ?? null
     );
+  flushSnapshot();
 
   return NextResponse.json({ ok: true, reportId: Number(info.lastInsertRowid) });
 }

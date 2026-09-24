@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 
 /**
@@ -78,6 +79,7 @@ export async function PATCH(req: NextRequest) {
     String(id),
     JSON.stringify({ immediate: true })
   );
+  flushSnapshot();
 
   return NextResponse.json({ ok: true });
 }

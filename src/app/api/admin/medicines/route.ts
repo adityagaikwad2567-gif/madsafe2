@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, jsonArray } from "@/lib/db";
+import { flushSnapshot } from "@/lib/db/persistence";
 import { getCurrentUser } from "@/lib/auth";
 
 /**
@@ -114,6 +115,7 @@ export async function POST(req: Request) {
       d.verification === "verified" ? admin.name : null, d.id
     );
     audit(admin.email, "medicine.update", String(d.id), { name: d.name, verification: d.verification ?? "unverified" });
+    flushSnapshot();
     return NextResponse.json({ ok: true, id: d.id });
   }
 
@@ -133,6 +135,7 @@ export async function POST(req: Request) {
   );
   const newId = Number(info.lastInsertRowid);
   audit(admin.email, "medicine.create", String(newId), { name: d.name, verification: d.verification ?? "unverified" });
+  flushSnapshot();
   return NextResponse.json({ ok: true, id: newId });
 }
 
@@ -148,5 +151,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Cannot delete: this medicine is referenced by cabinet or history entries." }, { status: 409 });
   }
   audit(admin.email, "medicine.delete", String(id), {});
+  flushSnapshot();
   return NextResponse.json({ ok: true });
 }
