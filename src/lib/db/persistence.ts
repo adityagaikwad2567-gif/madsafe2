@@ -22,8 +22,11 @@ const BLOB_PATH = "dbsnapshots/medsafe-latest.db";
 const MIN_SNAPSHOT_BYTES = 4096; // an initialized+seeded schema is never smaller
 
 type BlobClient = {
-  head: (pathname: string, opts?: { download?: boolean }) => Promise<{ size: number; uploadedAt?: Date }>;
-  get: (pathname: string, opts?: { download?: boolean }) => Promise<{ arrayBuffer: () => Promise<ArrayBuffer> } | null>;
+  head: (pathname: string, opts: { access: "private" }) => Promise<{ size: number; uploadedAt?: Date }>;
+  get: (pathname: string, opts: { access: "private" }) => Promise<
+    | { stream: ReadableStream | null; blob: { size: number | null; uploadedAt: Date } }
+    | null
+  >;
   put: (pathname: string, body: Buffer, opts: { access: "private"; addRandomSuffix: false }) => Promise<unknown>;
 };
 
@@ -54,11 +57,11 @@ export async function restoreLatestSnapshot(): Promise<void> {
   const blob = await getBlobClient();
   if (!blob) return;
   try {
-    const meta = await blob.head(BLOB_PATH, { download: false }).catch(() => null);
+    const meta = await blob.head(BLOB_PATH, { access: "private" }).catch(() => null);
     if (!meta || meta.size < MIN_SNAPSHOT_BYTES) return;
-    const data = await blob.get(BLOB_PATH, { download: true });
-    if (!data) return;
-    const buf = Buffer.from(await data.arrayBuffer());
+    const data = await blob.get(BLOB_PATH, { access: "private" });
+    if (!data || !data.stream) return;
+    const buf = Buffer.from(await new Response(data.stream).arrayBuffer());
     if (buf.length < MIN_SNAPSHOT_BYTES || buf.subarray(0, 15).toString("utf8") !== "SQLite format 3") {
       console.warn("[medsafe:persistence] snapshot failed integrity check; starting fresh");
       return;
