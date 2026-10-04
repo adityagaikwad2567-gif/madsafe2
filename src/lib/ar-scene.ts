@@ -42,7 +42,8 @@ export type ArScanResponse = {
   confidence: number | null;
   feature: ArFeature | null;
   steps: Array<{ label: string; status: "done" | "pending" }>;
-  demoNote: string;
+  /** Honest disclosure: zones come from the database, not from lens detection. */
+  disclosure: string;
 };
 
 export const AR_STEPS = [
@@ -180,25 +181,25 @@ function buildFeature(med: ArMedRow, lang?: Lang): ArFeature {
 }
 
 /**
- * Identify a "frame" and build the AR scene.
- * Demo behavior: a readable query/barcode resolves to the dataset;
- * an unreadable frame (uncertain) resolves to the labelled demo pack.
+ * Identify input and build the AR scene.
+ * Database-driven only: a readable query/barcode resolves to a stored record;
+ * anything else honestly reports that nothing could be identified — no demo
+ * pack substitution, ever.
  */
 export function arIdentify(opts: { query?: string; barcode?: string; uncertain?: boolean; lang?: Lang }): ArScanResponse {
   const db = getDb();
   const steps = AR_STEPS.map((label) => ({ label, status: "done" as const }));
-  const demoNote =
-    "Prototype AR demo: zones are projected from the verified database, not detected in the lens. " +
-    "Production would combine real OCR with on-device text recognition.";
+  const note =
+    "Zones are projected from the connected database — MedSafe does not detect or invent label content in the lens.";
 
   const resolve = (med: ArMedRow): ArScanResponse => {
     return {
       status: "identified",
-      message: "Label zones projected from the verified demo record.",
-      confidence: 0.91,
+      message: `Label zones projected from the ${med.verification} database record.`,
+      confidence: med.verification === "verified" ? 0.91 : 0.6,
       feature: buildFeature(med, opts.lang),
       steps,
-      demoNote,
+      disclosure: note,
     };
   };
 
@@ -217,25 +218,13 @@ export function arIdentify(opts: { query?: string; barcode?: string; uncertain?:
     if (byName) return resolve(byName);
   }
 
-  // Unclear/unidentified frame → show the labelled demo pack instead of failing silently.
-  const demo = pick("SELECT * FROM medicines WHERE slug = ?", "dolo-650" as never);
-  if (demo) {
-    return {
-      status: "identified",
-      message: "Frame unclear — showing the labelled demo pack (Dolo 650).",
-      confidence: 0.42,
-      feature: buildFeature(demo, opts.lang),
-      steps,
-      demoNote: demoNote + " Try aiming at the demo pack name for a confident match.",
-    };
-  }
-
   return {
     status: "not_found",
-    message: "No demo records available for AR projection.",
+    message:
+      "Could not identify a medicine for this input in the connected database. Check the spelling, scan the package, or search manually.",
     confidence: null,
     feature: null,
     steps,
-    demoNote,
+    disclosure: note,
   };
 }

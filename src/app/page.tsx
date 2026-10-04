@@ -147,14 +147,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Demo notice */}
+      {/* Data transparency notice */}
       <section className="mx-auto max-w-6xl px-4 py-10">
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-          <p className="font-semibold">Demo dataset notice</p>
+          <p className="font-semibold">Data sources &amp; verification notice</p>
           <p className="mt-1 leading-relaxed">
-            This prototype runs on a small, clearly-labelled demo dataset. It is <strong>not</strong> an official
-            medical database. Safety classifications follow the platform&rsquo;s rule engine on that demo data — always verify
-            with a pharmacist.
+            All medicine information comes from records imported into MedSafe&rsquo;s database with a cited source and
+            verification status. MedSafe is <strong>not</strong> an official medical database. Safety classifications follow
+            the platform&rsquo;s rule engine on that data — always verify with a pharmacist. Unverified or missing information
+            is shown as such, never filled in.
           </p>
         </div>
       </section>

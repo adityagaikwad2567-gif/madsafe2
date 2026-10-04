@@ -25,7 +25,8 @@ Required env in production:
 3. Add a **persistent disk** mounted at `/data` and set `MEDSAFE_DB_PATH=/data/medsafe.db`.
 4. Add env vars from the table above (set `NODE_ENV=production`).
 5. Health check path: **`/api/health`** (returns `200` + `database:"ok"`).
-6. Deploy; first boot creates schema, seeds demo data and creates the admin account.
+6. Deploy; first boot creates the schema, purges any legacy fake demo rows, seeds safety translations and
+   creates the admin account (no medicine data is seeded — import real records afterwards).
 7. **Immediately sign in at `/admin` and change the admin password via the seeded credentials policy**
    (or set a strong `ADMIN_PASSWORD` before first boot).
 
@@ -37,8 +38,9 @@ Required env in production:
    every write and restored on boot, so admin imports and user data survive cold starts and redeploys.
    Setup: a private Blob store named `medsafe-data` connected to the project (creates
    `BLOB_READ_WRITE_TOKEN` automatically). Without the token, persistence silently disables and the
-   app behaves as the old ephemeral `/tmp` demo. Multi-instance caveat: concurrent lambdas can race
-   (last flush wins) — acceptable for the demo profile; real Postgres remains the upgrade path
+   app behaves as the old ephemeral `/tmp` profile. Multi-instance caveat: concurrent lambdas merge
+   additively on flush (etag + per-table `INSERT OR IGNORE`), and the boot purge removes any demo rows an
+   older snapshot may re-introduce — acceptable for this profile; real Postgres remains the upgrade path
    (`docs/DATABASE.md` §PostgreSQL migration).
 4. Set a custom domain; HTTPS is automatic (session cookies are `Secure` in production).
 
@@ -63,8 +65,8 @@ front (Caddy: `medsafe.example.com { reverse_proxy localhost:3000 }`).
 
 ```bash
 npm run db:backup   # schedule daily via cron; stores medsafe-backup-<date>.db
-npm run db:seed     # only on an empty DB (boot auto-seeds anyway)
-npm run db:reset    # destructive — re-provision demo state
+npm run db:seed     # translations + admin only; safe on any DB (no medicine data)
+npm run db:reset    # destructive — drops the local DB; next boot restores from the cloud snapshot
 ```
 
 ## 5. Monitoring & uptime
@@ -77,8 +79,10 @@ npm run db:reset    # destructive — re-provision demo state
 
 1. `/api/health` returns `database:"ok"`.
 2. Home loads; switch language to हिंदी and back.
-3. Search "Dolo" → open profile → Verified/Demo badge + source link visible.
-4. `/scan` → demo barcode `8901234500017` → Dolo 650 match.
+3. Import a record (admin → Data → Import) or search an existing one → open profile →
+   Verified/Unverified badge + source link visible.
+4. `/scan` → type or speak a medicine name → matched against the database; an unknown barcode returns
+   an honest `not_found` (no fake match).
 5. Register a test user → add two medicines to cabinet → duplicate banner appears.
 6. Log in as admin → Users tab lists the test user → deactivate → test user's next request fails auth.
 

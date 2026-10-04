@@ -24,7 +24,7 @@ type ArResponse = {
   confidence: number | null;
   feature: { slug: string; name: string; verification: string; expiry: { state: string; date?: string; days?: number }; boxes: Box[] } | null;
   steps: Array<{ label: string; status: "done" | "pending" }>;
-  demoNote: string;
+  disclosure: string;
 };
 
 type Phase = "viewfinder" | "scanning" | "result";
@@ -48,39 +48,15 @@ const KIND_ICON: Record<Box["kind"], typeof Pill> = {
   expiry: CalendarClock, storage: Thermometer, nodriving: Car,
 };
 
-/** Demo pack expiry: computed once per module load (630 days out ≈ ~21 months). */
-const DEMO_PACK_EXP = new Date(Date.now() + 630 * 86400_000).toISOString().slice(0, 10);
-
-/** A stylized demo pack rendered behind the overlay so the AR demo is self-contained. */
-function DemoPack({ blurry = false }: { blurry?: boolean }) {
-  return (
-    <div className={`absolute inset-6 rounded-xl border-2 border-white/25 bg-white/95 p-4 shadow-2xl ${blurry ? "blur-[2.5px] scale-[1.02]" : ""}`}>
-      <div className="flex h-full flex-col justify-between rounded-lg bg-gradient-to-b from-sky-50 to-white p-4">
-        <div>
-          <p className="text-lg font-bold tracking-tight text-navy-900">Dolo 650</p>
-          <p className="text-[10px] font-medium text-slate-500">Paracetamol Tablets IP 650 mg · Micro Labs (demo)</p>
-        </div>
-        <div className="space-y-1.5 text-[9px] leading-tight text-slate-600">
-          <p><span className="font-semibold text-navy-900">Each uncoated tablet contains:</span> Paracetamol IP 650 mg</p>
-          <p className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-900">Warning: may cause drowsiness — avoid driving if affected</p>
-          <p><span className="font-semibold text-navy-900">Mfr.:</span> Micro Labs (demo) · <span className="font-semibold text-navy-900">Store:</span> below 30°C</p>
-          <p className="font-mono font-semibold text-slate-700">MFG: 08/2024 &nbsp; EXP: {DEMO_PACK_EXP}</p>
-          <p className="font-mono text-[8px] text-slate-400">BATCH MSF-2601 · 8901234500017</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ArExplainerClient() {
   const { t } = useI18n();
   const params = useSearchParams();
   const slugFocus = params.get("slug");
   const [phase, setPhase] = useState<Phase>("viewfinder");
-  const [mode, setMode] = useState<"camera" | "demo">("demo");
+  const [mode, setMode] = useState<"camera" | "manual">("manual");
+  const [query, setQuery] = useState("");
   const [cameraOn, setCameraOn] = useState(false);
   const [frozen, setFrozen] = useState(false);
-  const [blurry, setBlurry] = useState(false);
   const [result, setResult] = useState<ArResponse | null>(null);
   const [selected, setSelected] = useState<Box | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -107,8 +83,8 @@ export function ArExplainerClient() {
         await videoRef.current.play();
       }
     } catch {
-      setError("Camera unavailable — switched to the demo pack view.");
-      setMode("demo");
+      setError("Camera unavailable in this browser. Type the medicine name below to project its label zones.");
+      setMode("manual");
       setCameraOn(false);
     }
   };
@@ -122,10 +98,14 @@ export function ArExplainerClient() {
     setResult(null);
   }, []);
 
-  const runDetection = useCallback(async (opts?: { uncertain?: boolean; slug?: string }) => {
+  const runDetection = useCallback(async (opts?: { uncertain?: boolean; slug?: string; query?: string }) => {
+    const q = opts?.slug ?? opts?.query ?? query.trim();
+    if (!q && !opts?.uncertain) {
+      setError("Type the medicine name printed on the pack first — zones are projected from the connected database, not invented.");
+      return;
+    }
     setPhase("scanning");
     setSelected(null);
-    setBlurry(Boolean(opts?.uncertain));
     try {
       await new Promise((r) => setTimeout(r, 900)); // staged detection beat
       const res = await fetch("/api/ar/features", {
@@ -134,7 +114,7 @@ export function ArExplainerClient() {
         body: JSON.stringify(
           opts?.uncertain
             ? { uncertain: true }
-            : { query: opts?.slug ?? "Dolo 650" }
+            : { query: q }
         ),
       });
       const data: ArResponse = await res.json();
@@ -149,7 +129,7 @@ export function ArExplainerClient() {
       setError("Detection failed — please try again.");
       setPhase("viewfinder");
     }
-  }, []);
+  }, [query]);
 
   // Deep link: /ar?slug=... projects that medicine directly once on mount.
   const ranSlug = useRef(false);
@@ -181,7 +161,6 @@ export function ArExplainerClient() {
     setResult(null);
     setSelected(null);
     setError(null);
-    setBlurry(false);
     setFrozen(false);
     if (mode === "camera") {
       openCamera();
@@ -207,10 +186,27 @@ export function ArExplainerClient() {
             {/* Frozen camera frame */}
             <canvas ref={canvasRef} className={`absolute inset-0 h-full w-full object-cover ${frozen ? "" : "hidden"}`} />
 
-            {/* Demo pack backdrop */}
-            {mode === "demo" || (!cameraOn && !frozen) ? (
-              <div className={`absolute inset-0 bg-gradient-to-b from-navy-900 to-navy-950 ${phase === "scanning" ? "animate-pulse" : ""}`}>
-                <DemoPack blurry={blurry} />
+            {/* Neutral backdrop with name entry (no fake pack is ever rendered) */}
+            {(!cameraOn && !frozen) ? (
+              <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-navy-900 to-navy-950 px-6 ${phase === "scanning" ? "animate-pulse" : ""}`}>
+                <ScanLine size={30} className="text-teal-400" />
+                <p className="text-center text-xs text-navy-200">
+                  Type the medicine name from the pack, or open the camera and capture a frame.
+                </p>
+                <form
+                  onSubmit={(e) => { e.preventDefault(); runDetection({ query }); }}
+                  className="flex w-full max-w-56 gap-1.5"
+                >
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Medicine name…"
+                    className="min-w-0 flex-1 rounded-lg border border-white/20 bg-white/10 px-2.5 py-2 text-xs text-white placeholder:text-navy-300 outline-none focus:border-teal-400"
+                  />
+                  <button type="submit" disabled={!query.trim()} className="shrink-0 rounded-lg bg-teal-500 px-3 py-2 text-xs font-bold text-navy-950 hover:bg-teal-400 disabled:opacity-40">
+                    Project
+                  </button>
+                </form>
               </div>
             ) : null}
 
@@ -278,12 +274,6 @@ export function ArExplainerClient() {
                     <button onClick={openCamera} className="inline-flex items-center gap-1.5 rounded-full bg-teal-500 px-4 py-2 text-xs font-bold text-navy-950 hover:bg-teal-400">
                       <Camera size={14} /> {t("ar.openCamera")}
                     </button>
-                    <button onClick={() => runDetection()} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-xs font-bold text-white ring-1 ring-white/25 hover:bg-white/20">
-                      <ScanLine size={14} /> {t("ar.demoPack")}
-                    </button>
-                    <button onClick={() => runDetection({ uncertain: true })} className="rounded-full bg-white/10 px-4 py-2 text-xs font-bold text-white ring-1 ring-white/25 hover:bg-white/20">
-                      {t("ar.unclear")}
-                    </button>
                   </>
                 )}
               </div>
@@ -296,7 +286,7 @@ export function ArExplainerClient() {
               <span>
                 {result.confidence !== null ? <>{t("ar.confidence")}: <strong className="text-navy-900">{Math.round(result.confidence * 100)}%</strong></> : null}
               </span>
-              <span>{result.feature?.verification === "verified" ? "Verified demo record" : "Unverified record"}</span>
+              <span>{result.feature?.verification === "verified" ? "Verified database record" : "Unverified record"}</span>
             </div>
           ) : null}
         </div>
@@ -365,7 +355,7 @@ export function ArExplainerClient() {
             <Card>
               <h3 className="text-sm font-bold text-navy-900">How this works</h3>
               <ol className="mt-2.5 space-y-2 text-xs text-slate-600">
-                {["Frame captured (demo pack or camera)", "Text & barcode regions detected", "Medicine identified", "Verified database lookup", "Label zones projected"].map((s, i) => (
+                {["Name entered or frame captured", "Medicine identified", "Verified database lookup", "Label zones projected", "Tap any zone for details"].map((s, i) => (
                   <li key={s} className="flex items-center gap-2.5">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-navy-50 text-[10px] font-bold text-navy-700">{i + 1}</span>
                     {s}
@@ -373,13 +363,12 @@ export function ArExplainerClient() {
                 ))}
               </ol>
               <p className="mt-3 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
-                Prototype: zones are projected from the verified database with on-record coordinates. Production would
-                use real OCR plus on-device text recognition to locate regions in the lens. Nothing is diagnosed here —
-                it is your pack, annotated.
+                Zones are projected from the connected database — MedSafe does not detect or invent label content in
+                the lens. Nothing is diagnosed here — it is your pack, annotated.
               </p>
               <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
                 <p className="font-semibold text-navy-900">Try it:</p>
-                <p className="mt-1">1. “Use demo pack” → full projection · 2. “Unclear frame” → low-confidence fallback on the blurry pack · 3. Tap any zone for details.</p>
+                <p className="mt-1">1. Type a medicine name (or open the camera) → zones project onto the viewfinder · 2. Tap any zone for details.</p>
               </div>
             </Card>
           ) : null}

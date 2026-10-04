@@ -33,20 +33,42 @@ export async function POST(req: Request) {
       ? identifyByBarcode(barcode)
       : identifyByText(query ?? "", mode, { ocrConfidence });
 
-  // Privacy-friendly history: user_id stays NULL for anonymous scans; only method + query are kept.
   const db = getDb();
+
+  // Privacy-friendly history: user_id stays NULL for anonymous scans; only method + query are kept.
+  const medId = result.candidates[0]
+    ? (db.prepare("SELECT id FROM medicines WHERE slug = ?").get(result.candidates[0].slug) as { id: number } | undefined)?.id ?? null
+    : null;
   db.prepare(
     "INSERT INTO scan_history (user_id, medicine_id, method, query, confidence, matched) VALUES (?,?,?,?,?,?)"
-  )
-    .run(
-      user?.id ?? null,
-      result.candidates[0] ? (db.prepare("SELECT id FROM medicines WHERE slug = ?").get(result.candidates[0].slug) as { id: number } | undefined)?.id ?? null : null,
-      mode,
-      query ?? barcode ?? null,
-      result.confidence,
-      result.status === "identified" ? 1 : 0
-    );
+  ).run(user?.id ?? null, medId, mode, query ?? barcode ?? null, result.confidence, result.status === "identified" ? 1 : 0);
+
+  // Usage statistics (real counts only — seeded fake stats were purged).
+  if (result.status === "identified" && medId) {
+    db.prepare(
+      `INSERT INTO search_stats (medicine_id, count) VALUES (?,1)
+       ON CONFLICT(medicine_id) DO UPDATE SET count = count + 1`
+    ).run(medId);
+  }
   flushSnapshot();
 
-  return NextResponse.json(result);
+  // Structured contract on top of the scanner payload:
+  //   success / matchStatus / code / medicine / candidates / matchMethod
+  const identified = result.status === "identified";
+  return NextResponse.json({
+    ...result, // legacy fields consumed by the scanner client (status, message, confidence, candidates, steps, ocrText)
+    success: identified,
+    matchStatus: result.status,
+    matchMethod: result.method,
+    code: identified
+      ? undefined
+      : result.status === "uncertain"
+        ? "LOW_CONFIDENCE"
+        : "MEDICINE_NOT_FOUND",
+    medicineId: medId,
+    message:
+      result.status === "not_found" && mode === "barcode"
+        ? result.message
+        : result.message,
+  });
 }

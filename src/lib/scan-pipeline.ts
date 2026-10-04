@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { matchMedicines, type ScoredMatch } from "@/lib/medicine-matching";
 
 /**
  * Scan identification pipeline — real input, deterministic matching.
@@ -7,6 +8,10 @@ import { getDb } from "@/lib/db";
  * and REAL on-device OCR (tesseract.js) and sends the recognized text or code
  * here. This module never invents input: an empty or low-signal extraction
  * honestly returns "uncertain" and never falls back to a demo medicine.
+ *
+ * Text matching is delegated to the shared medicine-matching engine
+ * (normalization, strength variants, dosage-form wording, bounded OCR-typo
+ * tolerance) so scanning and searching behave identically.
  */
 
 export type ScanStep = { label: string; detail: string; status: "done" | "pending" };
@@ -18,6 +23,8 @@ export type ScanCandidate = {
   generic_name: string | null;
   manufacturer: string | null;
   strength: string | null;
+  matchScore?: number;
+  matchMethod?: string;
 };
 
 export type ScanResult = {
@@ -44,14 +51,6 @@ export function buildSteps(finalStep: number): ScanStep[] {
     detail: i < finalStep ? "completed" : i === finalStep ? "current" : "pending",
     status: i < finalStep ? "done" : i === finalStep ? "pending" : "pending",
   }));
-}
-
-function tokenize(s: string): string[] {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9\u0900-\u097F ]+/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length > 2 && !["the", "and", "for", "tablet", "tab", "mg", "ml"].includes(t));
 }
 
 export function identifyByBarcode(code: string): ScanResult {
@@ -88,19 +87,19 @@ export function identifyByBarcode(code: string): ScanResult {
 }
 
 /**
- * Match OCR/typed text against the medicines table using token-overlap scoring.
- * `ocrConfidence` (0..1, from tesseract.js) downgrades results from noisy reads.
+ * Match OCR/typed text against the medicines table via the shared engine.
+ * `ocrConfidence` (0..1, from tesseract.js word confidences) downgrades
+ * results from noisy reads — low-confidence reads refuse rather than guess.
  */
 export function identifyByText(
   query: string,
   method: ScanResult["method"],
   opts?: { ocrConfidence?: number }
 ): ScanResult {
-  const db = getDb();
-  const tokens = tokenize(query);
   const steps = buildSteps(5);
+  const recognized = query.trim();
 
-  if (tokens.length === 0) {
+  if (!recognized) {
     return {
       status: "uncertain",
       message:
@@ -109,66 +108,60 @@ export function identifyByText(
       candidates: [],
       method,
       steps,
-      ocrText: query.trim() ? [`Recognized text: "${query.trim().slice(0, 120)}"`] : [],
+      ocrText: [],
     };
   }
 
-  const all = db
-    .prepare("SELECT slug, name, brand_name, generic_name, manufacturer, strength, verification FROM medicines")
-    .all() as Array<ScanCandidate & { verification: string }>;
+  const result = matchMedicines(recognized, { limit: 4 });
+  const toCandidate = (m: ScoredMatch): ScanCandidate => ({
+    slug: m.medicine.slug,
+    name: m.medicine.name,
+    brand_name: m.medicine.brand_name,
+    generic_name: m.medicine.generic_name,
+    manufacturer: m.medicine.manufacturer,
+    strength: m.medicine.strength,
+    matchScore: m.score,
+    matchMethod: m.method,
+  });
 
-  const scored = all
-    .map((m) => {
-      const hay = tokenize([m.name, m.brand_name ?? "", m.generic_name ?? ""].join(" ")).join(" ");
-      let hits = 0;
-      for (const t of tokens) if (hay.includes(t)) hits++;
-      const nameHit = tokens.some((t) => m.name.toLowerCase().includes(t)) ? 0.5 : 0;
-      const verifiedBonus = m.verification === "verified" ? 0.08 : 0;
-      return { med: m, score: Math.min(0.92, (hits / tokens.length) * 0.6 + nameHit + verifiedBonus) };
-    })
-    .filter((r) => r.score > 0.25)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
-
-  if (scored.length === 0 || scored[0].score < 0.35) {
-    return {
-      status: "not_found",
-      message:
-        "No matching medicine found in the verified database. Check the spelling or try manual search. MedSafe never guesses an unidentified medicine.",
-      confidence: null,
-      candidates: [],
-      method,
-      steps,
-      ocrText: [`Recognized text: "${query.trim().slice(0, 120)}"`],
-    };
-  }
-
-  const top = scored[0];
-  const capped = top.med.verification === "verified" ? Math.min(0.92, top.score) : Math.min(0.55, top.score);
   // Noisy OCR (low mean word confidence) must not masquerade as a confident match.
-  const ocrPenalty = typeof opts?.ocrConfidence === "number" ? Math.max(0.5, opts.ocrConfidence) : 1;
-  const finalConfidence = Math.round(capped * ocrPenalty * 100) / 100;
-
-  if (finalConfidence < 0.35) {
+  if (typeof opts?.ocrConfidence === "number" && opts.ocrConfidence < 0.35) {
     return {
       status: "uncertain",
       message:
-        "The recognized text was too unclear for a confident match. Please review or retype the name below.",
+        "Medicine name could not be identified confidently. Please retake a clearer image or search manually.",
       confidence: null,
-      candidates: [],
+      candidates: result.matches.map(toCandidate),
       method,
       steps,
-      ocrText: [`Recognized text: "${query.trim().slice(0, 120)}"`],
+      ocrText: [`Recognized text: "${recognized.slice(0, 120)}"`],
+    };
+  }
+
+  if (result.status === "identified" || result.status === "ambiguous") {
+    const top = result.matches[0];
+    return {
+      status: "identified",
+      message:
+        result.status === "ambiguous"
+          ? "Several medicines match this text — please select the correct one below."
+          : `Matched against the ${top.medicine.verification} database record.`,
+      confidence: Math.round(top.score * 100) / 100,
+      candidates: result.matches.map(toCandidate),
+      method,
+      steps,
+      ocrText: [`Recognized text: "${recognized.slice(0, 120)}"`],
     };
   }
 
   return {
-    status: "identified",
-    message: `Matched against the ${top.med.verification} database record.`,
-    confidence: finalConfidence,
-    candidates: scored.map((s) => s.med),
+    status: "not_found",
+    message:
+      "No matching medicine found in the verified database. Check the spelling or try manual search. MedSafe never guesses an unidentified medicine.",
+    confidence: null,
+    candidates: [],
     method,
     steps,
-    ocrText: [`Recognized text: "${query.trim().slice(0, 120)}"`],
+    ocrText: [`Recognized text: "${recognized.slice(0, 120)}"`],
   };
 }

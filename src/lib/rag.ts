@@ -1,5 +1,6 @@
 import { getDb, jsonArray } from "@/lib/db";
 import { getMedicineIngredients } from "@/lib/safety-engine";
+import { matchMedicines } from "@/lib/medicine-matching";
 
 /**
  * RAG pipeline for MedSafe AI.
@@ -81,6 +82,18 @@ function retrieveMedicine(q: string): MedRow | null {
   const db = getDb();
   const kws = keywords(q);
   if (kws.length === 0) return null;
+
+  // Shared matching engine: normalized + fuzzy medicine identification so the
+  // AI answers about exactly the record a scan/search would find.
+  const match = matchMedicines(q, { limit: 1 });
+  if (match.status !== "not_found") {
+    const row = db.prepare("SELECT * FROM medicines WHERE id = ?").get(match.matches[0].medicine.id) as
+      | MedRow
+      | undefined;
+    if (row) return row;
+  }
+
+  // Keyword fallback for full-phrase questions (e.g. "dolo 650 side effects").
   const all = db.prepare("SELECT * FROM medicines").all() as unknown as MedRow[];
   let best: { med: MedRow; score: number } | null = null;
   for (const med of all) {
@@ -99,8 +112,8 @@ type Snippet = { text: string; score: number; source: RagSource; tag: string };
 function buildContext(med: MedRow, intent: string): { snippets: Snippet[]; best: number } {
   const snippets: Snippet[] = [];
   const src: RagSource = {
-    title: med.source_title ?? "MedSafe demo knowledge base",
-    publisher: med.source_publisher ?? "MedSafe demo dataset",
+    title: med.source_title ?? "Connected MedSafe database",
+    publisher: med.source_publisher ?? "Source not recorded",
     updated: med.last_updated,
   };
   const K = (text: string, tag: string, base: number) =>
@@ -207,8 +220,8 @@ export function answerQuestion(question: string, opts?: { lang?: "en" | "hi" | "
 
   const sources: RagSource[] = [
     {
-      title: med.source_title ?? "MedSafe demo knowledge base",
-      publisher: med.source_publisher ?? "MedSafe demo dataset",
+      title: med.source_title ?? "Connected MedSafe database",
+      publisher: med.source_publisher ?? "Source not recorded",
       updated: med.last_updated,
     },
   ];

@@ -125,7 +125,7 @@ export default async function CycleSafePage() {
                       {m.name}
                     </Link>
                   ))}
-                  {byTag(tag).length === 0 ? <span className="text-xs text-slate-400">Demo records coming soon.</span> : null}
+                  {byTag(tag).length === 0 ? <span className="text-xs text-slate-400">No records in the database yet for this category.</span> : null}
                 </div>
               </Card>
             ))}
@@ -133,7 +133,7 @@ export default async function CycleSafePage() {
 
           <Card className="border-pink-100">
             <h2 className="text-sm font-bold text-navy-900">Medicines with CycleSafe awareness notes</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Demo records — verified information shown where available.</p>
+            <p className="mt-0.5 text-xs text-slate-500">Records from the connected database — verified information shown where available.</p>
             <ul className="mt-3 divide-y divide-pink-50">
               {meds.map((m) => (
                 <li key={m.slug} className="py-3">

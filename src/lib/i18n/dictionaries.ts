@@ -43,8 +43,6 @@ const en: Dict = {
   "home.report.title": "Safety reporting",
   "home.report.sub": "Anonymously report expired or suspicious medicines for awareness and follow-up.",
   "home.disclaimer.title": "Medical disclaimer",
-  "home.demo.title": "Demo dataset notice",
-  "home.demo.body": "MedSafe runs on a small, clearly-labelled demo dataset for this prototype. It is not an official medical database. Verify everything with a pharmacist.",
 
   "scan.title": "Scan Medicine",
   "scan.sub": "Scan → Identify → Verify → Analyze → Understand → Consult",
@@ -117,9 +115,8 @@ const en: Dict = {
   "ai.refused": "I don't have enough verified information to answer this safely.",
 
   "ar.title": "AR Medicine Explainer",
-  "ar.sub": "Point at a medicine pack — MedSafe projects highlights for the name, ingredients, expiry and warnings directly on the viewfinder. Demo mode uses the labelled sample pack.",
+  "ar.sub": "Identify a medicine by name or camera — MedSafe projects highlights for the name, ingredients, expiry and warnings from the connected database onto the viewfinder.",
   "ar.openCamera": "Open camera",
-  "ar.demoPack": "Use demo pack",
   "ar.unclear": "Unclear frame",
   "ar.explain": "Explain pack",
   "ar.detecting": "Detecting label regions…",
@@ -173,7 +170,7 @@ const en: Dict = {
   "offline.clear": "Clear saved copies",
 
   "footer.disclaimer": "MedSafe is an awareness and information platform. It does not diagnose medical conditions, prescribe medicines, recommend dosages, or replace a doctor or pharmacist. Always consult a qualified healthcare professional before starting, stopping or changing any medicine.",
-  "footer.demo": "Prototype with demo data — not an official medical database.",
+  "footer.note": "Awareness platform — not an official medical database. Sources shown with every record.",
   "footer.rights": "A student innovation prototype.",
   "footer.tagline": "A digital awareness layer between the medicine packet and the patient.",
   "footer.platform": "Platform",
@@ -217,8 +214,6 @@ const hi: Dict = {
   "home.report.title": "सुरक्षा रिपोर्टिंग",
   "home.report.sub": "एक्सपायर्ड या संदिग्ध दवाओं की गुमनाम रिपोर्ट करें।",
   "home.disclaimer.title": "चिकित्सा अस्वीकरण",
-  "home.demo.title": "डेमो डेटासेट सूचना",
-  "home.demo.body": "यह प्रोटोटाइप एक छोटे, स्पष्ट रूप से चिह्नित डेमो डेटासेट पर चलता है। यह कोई आधिकारिक चिकित्सा डेटाबेस नहीं है। कृपया फार्मासिस्ट से पुष्टि करें।",
 
   "scan.title": "दवा स्कैन करें",
   "scan.sub": "स्कैन → पहचान → सत्यापन → विश्लेषण → समझ → परामर्श",
@@ -287,9 +282,8 @@ const hi: Dict = {
   "ai.refused": "मेरे पास इसे सुरक्षित रूप से बताने के लिए पर्याप्त सत्यापित जानकारी नहीं है।",
 
   "ar.title": "AR मेडिसिन समझानेवाला",
-  "ar.sub": "दवा के पैकेट पर कैमरा रखें — मेडसेफ नाम, सामग्री, एक्सपायरी और चेतावनी को व्यूफाइंडर पर हाइलाइट करता है। डेमो मोड नमूना पैकेट उपयोग करता है।",
+  "ar.sub": "दवा का नाम लिखें या कैमरा रखें — मेडसेफ नाम, सामग्री, एक्सपायरी और चेतावनी को डेटाबेस से व्यूफाइंडर पर हाइलाइट करता है।",
   "ar.openCamera": "कैमरा खोलें",
-  "ar.demoPack": "डेमो पैकेट उपयोग करें",
   "ar.unclear": "धुंधला फ्रेम",
   "ar.explain": "पैकेट समझाएँ",
   "ar.detecting": "लेबल क्षेत्र पहचाने जा रहे हैं…",
@@ -343,7 +337,7 @@ const hi: Dict = {
   "offline.clear": "सहेजी प्रतियाँ हटाएँ",
 
   "footer.disclaimer": "मेडसेफ एक जागरूकता और सूचना मंच है। यह बीमारी का निदान नहीं करता, दवाएँ नहीं लिखता, खुराक नहीं बताता, और डॉक्टर या फार्मासिस्ट का विकल्प नहीं है। कोई भी दवा शुरू करने, बंद करने या बदलने से पहले योग्य स्वास्थ्य पेशेवर से परामर्श करें।",
-  "footer.demo": "डेमो डेटा वाला प्रोटोटाइप — आधिकारिक चिकित्सा डेटाबेस नहीं।",
+  "footer.note": "जागरूकता मंच — आधिकारिक चिकित्सा डेटाबेस नहीं। हर रिकॉर्ड के साथ स्रोत दिखाया जाता है।",
   "footer.rights": "एक छात्र नवाचार प्रोटोटाइप।",
   "footer.tagline": "दवा के पैकेट और मरीज़ के बीच एक डिजिटल जागरूकता परत।",
   "footer.platform": "प्लेटफ़ॉर्म",
@@ -387,8 +381,6 @@ const mr: Dict = {
   "home.report.title": "सुरक्षा तक्रारी",
   "home.report.sub": "मुदत संपलेली किंवा संशयास्पद औषधे निनावी तक्रार करा.",
   "home.disclaimer.title": "वैद्यकीय अस्वीकरण",
-  "home.demo.title": "डेमो डेटासेट सूचना",
-  "home.demo.body": "हे प्रोटोटाइप लहान, स्पष्टपणे चिन्हांकित डेमो डेटासेटवर चालते. हे अधिकृत वैद्यकीय डेटाबेस नाही. फार्मासिस्टकडून खात्री करा.",
 
   "scan.title": "औषध स्कॅन करा",
   "scan.sub": "स्कॅन → ओळख → सत्यापन → विश्लेषण → समज → सल्ला",
@@ -457,9 +449,8 @@ const mr: Dict = {
   "ai.refused": "माझ्याकडे हे सुरक्षितपणे सांगण्यासाठी पुरेशी सत्यापित माहिती नाही.",
 
   "ar.title": "AR औषध स्पष्टक",
-  "ar.sub": "औषधाच्या पॅकेटवर कॅमेरा धरा — मेडसेफ नाव, घटक, मुदत आणि सूचना व्ह्यूफाइंडरवर हायलाइट करते. डेमो मोड नमुना पॅक वापरते.",
+  "ar.sub": "औषधाचे नाव टाइप करा किंवा कॅमेरा धरा — मेडसेफ नाव, घटक, मुदत आणि सूचना डेटाबेसवरून व्ह्यूफाइंडरवर हायलाइट करते.",
   "ar.openCamera": "कॅमेरा उघडा",
-  "ar.demoPack": "डेमो पॅक वापरा",
   "ar.unclear": "अस्पष्ट फ्रेम",
   "ar.explain": "पॅक समजावून सांगा",
   "ar.detecting": "लेबल भाग ओळखले जात आहेत…",
@@ -513,7 +504,7 @@ const mr: Dict = {
   "offline.clear": "जतन केलेल्या प्रती पुसा",
 
   "footer.disclaimer": "मेडसेफ हे जाणीव आणि माहितीचे व्यासपीठ आहे. हे रोगांचे निदान करत नाही, औषध लिहित नाही, मात्रा सुचवत नाही, आणि डॉक्टर किंवा फार्मासिस्टची जागा घेत नाही. कोणतेही औषध सुरू करण्यापूर्वी, थांबवण्यापूर्वी किंवा बदलण्यापूर्वी पात्र आरोग्य व्यावसायिकाचा सल्ला घ्या.",
-  "footer.demo": "डेमो डेटा असलेले प्रोटोटाइप — अधिकृत वैद्यकीय डेटाबेस नाही.",
+  "footer.note": "जागरूकता मंच — अधिकृत वैद्यकीय डेटाबेस नाही. प्रत्येक नोंदीसोबत स्रोत दाखवला जातो.",
   "footer.rights": "एक विद्यार्थी नावीन्य प्रोटोटाइप.",
   "footer.tagline": "औषधाच्या पॅकेट आणि रुग्णामधील डिजिटल जाणकारीचा थर.",
   "footer.platform": "प्लॅटफॉर्म",

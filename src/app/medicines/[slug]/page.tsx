@@ -38,23 +38,23 @@ const SEC = {
   en: { identity: "Medicine identity", ingredients: "Active ingredients", storage: "Storage", expiry: "Expiry information", safety: "Safety indicator",
     uses: "Uses", precautions: "Precautions", sideEffects: "Common side effects", contraindications: "Contraindications",
     valid: (d?: string) => `Valid until ${d}`,
-    ok: (n?: number) => `Valid — about ${n} days remaining (demo pack date).`,
+    ok: (n?: number) => `Valid — about ${n} days remaining (per the recorded pack date).`,
     near: (n?: number) => `Expires soon — about ${n} days remaining.`,
-    expired: () => "This demo pack date has passed — see the warning card.", none: () => "No expiry recorded.",
+    expired: () => "This pack date has passed — see the warning card.", none: () => "No expiry recorded.",
     notRecorded: "Not recorded.", source: "Source", updated: "Last updated", verifiedBy: "Verified by", pending: "Pending review" },
   hi: { identity: "दवा की पहचान", ingredients: "सक्रिय तत्व", storage: "भंडारण", expiry: "एक्सपायरी जानकारी", safety: "सुरक्षा सूचक",
     uses: "उपयोग", precautions: "सावधानियाँ", sideEffects: "आम दुष्प्रभाव", contraindications: "कब उपयोग न करें",
     valid: (d?: string) => `${d} तक वैध`,
-    ok: (n?: number) => `वैध — लगभग ${n} दिन शेष (डेमो पैक तिथि).`,
+    ok: (n?: number) => `वैध — लगभग ${n} दिन शेष (रिकॉर्ड की पैक तिथि).`,
     near: (n?: number) => `जल्द एक्सपायर — लगभग ${n} दिन शेष.`,
-    expired: () => "डेमो पैक की तिथि बीत चुकी है — चेतावनी कार्ड देखें.", none: () => "कोई एक्सपायरी दर्ज नहीं.",
+    expired: () => "पैक की तिथि बीत चुकी है — चेतावनी कार्ड देखें.", none: () => "कोई एक्सपायरी दर्ज नहीं.",
     notRecorded: "दर्ज नहीं.", source: "स्रोत", updated: "अंतिम अपडेट", verifiedBy: "सत्यापनकर्ता", pending: "समीक्षा लंबित" },
   mr: { identity: "औषधाची ओळख", ingredients: "सक्रिय घटक", storage: "साठवण", expiry: "मुदत माहिती", safety: "सुरक्षा निर्देशक",
     uses: "वापर", precautions: "खबरदारी", sideEffects: "सामान्य दुष्परिणाम", contraindications: "कधी वापरू नका",
     valid: (d?: string) => `${d} पर्यंत वैध`,
-    ok: (n?: number) => `वैध — जवळपास ${n} दिवस शिल्लक (डेमो पॅक तारीख).`,
+    ok: (n?: number) => `वैध — जवळपास ${n} दिवस शिल्लक (नोंदीत पॅक तारीख).`,
     near: (n?: number) => `लवकर मुदत समाप्त — जवळपास ${n} दिवस शिल्लक.`,
-    expired: () => "डेमो पॅकची तारीख उलटून गेली आहे — सूचना कार्ड पहा.", none: () => "मुदत नोंदलेली नाही.",
+    expired: () => "पॅकची तारीख उलटून गेली आहे — सूचना कार्ड पहा.", none: () => "मुदत नोंदलेली नाही.",
     notRecorded: "नोंदलेले नाही.", source: "स्रोत", updated: "शेवटचे अद्ययावत", verifiedBy: "सत्यापक", pending: "छाननी प्रलंबित" },
 } as const;
 
@@ -80,11 +80,9 @@ export default async function MedicineProfilePage({ params }: Params) {
 
   // Three-state information label per the data-quality spec.
   const infoLabel =
-    med.record_kind === "demo" && med.verification === "verified"
-      ? { text: "Demo Information", tone: "navy" as const, hint: "Clearly-labelled prototype record for demonstrating product flows. Fact patterns follow public label references, but this is not an official database entry." }
-      : med.verification === "verified"
-        ? { text: "Verified Information", tone: "teal" as const, hint: "Reviewed against the cited source document by the listed reviewer." }
-        : { text: "Unverified Information", tone: "amber" as const, hint: "This record has not completed review. Missing fields are shown as unavailable — never guessed." };
+    med.verification === "verified"
+      ? { text: "Verified Information", tone: "teal" as const, hint: "Reviewed against the cited source document by the listed reviewer." }
+      : { text: "Unverified Information", tone: "amber" as const, hint: "This record has not completed review. Missing fields are shown as unavailable — never guessed." };
 
   const FACTS: Array<{ icon: typeof Pill; label: string; value: string }> = [
     { icon: Pill, label: "Brand name", value: med.brand_name ?? NOT_AVAILABLE },
@@ -193,6 +191,8 @@ export default async function MedicineProfilePage({ params }: Params) {
             </div>
             <p className="mt-3 text-xs text-slate-500">
               Safety classifications come from MedSafe&rsquo;s rule engine and verified records — they are not medical risk scores.
+              A green indicator means only that no relevant warning was found in the available dataset — it does <strong>not</strong> mean the medicine is completely safe.
+              The safety indicator is for awareness only and does not replace professional medical advice.
             </p>
           </Card>
 

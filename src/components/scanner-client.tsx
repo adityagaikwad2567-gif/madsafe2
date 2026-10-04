@@ -458,7 +458,7 @@ export function ScannerClient() {
                     value={barcode}
                     onChange={(e) => setBarcode(e.target.value)}
                     inputMode="numeric"
-                    placeholder="e.g. 8901234500017"
+                    placeholder="e.g. 8901234567890"
                     className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                   />
                   <button
@@ -484,7 +484,7 @@ export function ScannerClient() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && query.trim() && identify({ mode: "manual", query })}
-                  placeholder="e.g. Dolo 650, Coldrid, Moxikind-CV…"
+                  placeholder="Type the medicine name from the pack…"
                   className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 />
                 <button
@@ -536,6 +536,11 @@ export function ScannerClient() {
                 <Loader2 size={14} className="animate-spin" /> {stage}
               </p>
             ) : null}
+            {busy && !stage ? (
+              <p className="mb-3 flex items-center gap-2 rounded-xl bg-teal-50 px-3 py-2 text-xs font-medium text-teal-800">
+                <Loader2 size={14} className="animate-spin" /> Identifying medicine…
+              </p>
+            ) : null}
             {steps ? (
               <ol className="space-y-2.5">
                 {steps.map((s) => (
@@ -566,6 +571,11 @@ export function ScannerClient() {
                     </h2>
                     <Badge tone="teal">{t("scan.confidence")}: {Math.round((result.confidence ?? 0) * 100)}%</Badge>
                   </div>
+                  {result.candidates.length > 1 ? (
+                    <p className="mb-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                      Several medicines match — please select the correct one:
+                    </p>
+                  ) : null}
                   <div className="space-y-2.5">
                     {result.candidates.map((c) => (
                       <Link
@@ -636,16 +646,36 @@ export function ScannerClient() {
 }
 
 function ManualSuggestions({ onPick }: { onPick: (slug: string) => void }) {
-  const suggestions = ["Dolo 650", "Coldrid Cold & Flu", "Moxikind-CV 625", "Primolut-N", "Meftal-Spas", "Alerzo"];
+  /**
+   * Live suggestions from the connected database — nothing is hard-coded in
+   * the frontend. Hidden entirely when the database has no records.
+   */
+  const [suggestions, setSuggestions] = useState<Array<{ slug: string; name: string }>>([]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/medicines?suggest=1")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!alive || !data?.suggestions) return;
+        setSuggestions(data.suggestions.slice(0, 6));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (suggestions.length === 0) return null;
   return (
     <div className="mt-3 flex flex-wrap gap-1.5">
       {suggestions.map((s) => (
         <button
-          key={s}
-          onClick={() => onPick(s)}
+          key={s.slug}
+          onClick={() => onPick(s.name)}
           className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 transition hover:bg-teal-50 hover:text-teal-700"
         >
-          {s}
+          {s.name}
         </button>
       ))}
     </div>

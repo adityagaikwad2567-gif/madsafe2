@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     | undefined;
   if (!med) return NextResponse.json({ error: "Medicine not found." }, { status: 404 });
 
-  // Demo convenience: if no date given, adopt the sample pack expiry so the expiry flow is testable.
+  // If no date was given, fall back to the record's own pack expiry hint (nullable).
   const expiry = parsed.data.expiry_date ?? med.pack_expiry_hint ?? null;
   const info = db
     .prepare(

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, jsonArray } from "@/lib/db";
 import { flushSnapshot } from "@/lib/db/persistence";
+import { invalidateMatchIndex } from "@/lib/medicine-matching";
 import { getCurrentUser } from "@/lib/auth";
 
 /**
@@ -104,7 +105,7 @@ export async function POST(req: Request) {
       `UPDATE medicines SET slug=?, name=?, brand_name=?, generic_name=?, form=?, strength=?, manufacturer=?,
         category=?, barcode=?, schedule_class=?, rx_required=?, uses=?, precautions=?, side_effects=?, storage=?,
         pack_expiry_hint=?, drowsiness=?, driving_warning=?, pregnancy_caution=?, breastfeeding_caution=?,
-        menstrual_note=?, cycle_tags=?, verification=?, verified_by=?, last_updated=datetime('now') WHERE id=?`
+        menstrual_note=?, cycle_tags=?, verification=?, verified_by=?, record_kind='real', last_updated=datetime('now') WHERE id=?`
     ).run(
       d.slug, d.name, d.brand_name ?? null, d.generic_name ?? null, d.form ?? null, d.strength ?? null,
       d.manufacturer ?? null, d.category ?? null, d.barcode ?? null, d.schedule_class ?? null,
@@ -112,9 +113,10 @@ export async function POST(req: Request) {
       d.pack_expiry_hint ?? null, d.drowsiness ? 1 : 0, d.driving_warning ? 1 : 0,
       d.pregnancy_caution ? 1 : 0, d.breastfeeding_caution ? 1 : 0, d.menstrual_note ?? null,
       JSON.stringify(d.cycle_tags ?? []), d.verification ?? "unverified",
-      d.verification === "verified" ? admin.name : null, d.id
+      d.verification === "verified" ? admin.name : null, "real", d.id
     );
     audit(admin.email, "medicine.update", String(d.id), { name: d.name, verification: d.verification ?? "unverified" });
+    invalidateMatchIndex();
     flushSnapshot();
     return NextResponse.json({ ok: true, id: d.id });
   }
@@ -122,8 +124,8 @@ export async function POST(req: Request) {
   const info = db.prepare(
     `INSERT INTO medicines (slug, name, brand_name, generic_name, form, strength, manufacturer, category, barcode,
       schedule_class, rx_required, uses, precautions, side_effects, storage, pack_expiry_hint, drowsiness,
-      driving_warning, pregnancy_caution, breastfeeding_caution, menstrual_note, cycle_tags, verification, verified_by)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      driving_warning, pregnancy_caution, breastfeeding_caution, menstrual_note, cycle_tags, verification, verified_by, record_kind)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).run(
     d.slug, d.name, d.brand_name ?? null, d.generic_name ?? null, d.form ?? null, d.strength ?? null,
     d.manufacturer ?? null, d.category ?? null, d.barcode ?? null, d.schedule_class ?? null,
@@ -131,7 +133,7 @@ export async function POST(req: Request) {
     d.pack_expiry_hint ?? null, d.drowsiness ? 1 : 0, d.driving_warning ? 1 : 0,
     d.pregnancy_caution ? 1 : 0, d.breastfeeding_caution ? 1 : 0, d.menstrual_note ?? null,
     JSON.stringify(d.cycle_tags ?? []), d.verification ?? "unverified",
-    d.verification === "verified" ? admin.name : null
+    d.verification === "verified" ? admin.name : null, "real"
   );
   const newId = Number(info.lastInsertRowid);
   audit(admin.email, "medicine.create", String(newId), { name: d.name, verification: d.verification ?? "unverified" });
@@ -151,6 +153,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Cannot delete: this medicine is referenced by cabinet or history entries." }, { status: 409 });
   }
   audit(admin.email, "medicine.delete", String(id), {});
+  invalidateMatchIndex();
   flushSnapshot();
   return NextResponse.json({ ok: true });
 }

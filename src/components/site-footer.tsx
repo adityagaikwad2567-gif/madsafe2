@@ -23,7 +23,7 @@ export function SiteFooter() {
               {t("footer.tagline")}
             </p>
             <p className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800">
-              <FlaskConical size={13} /> {t("footer.demo")}
+              <FlaskConical size={13} /> {t("footer.note")}
             </p>
           </div>
 

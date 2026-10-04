@@ -148,7 +148,7 @@ export function CabinetClient({ userName }: { userName: string }) {
             onChange={(e) => setPicked(e.target.value)}
             className="min-w-56 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-teal-500"
           >
-            <option value="">Select a medicine (demo database)…</option>
+            <option value="">Select a medicine from the database…</option>
             {options.map((o) => (
               <option key={o.slug} value={o.slug}>
                 {o.name} {o.strength ? `(${o.strength})` : ""}
@@ -164,7 +164,7 @@ export function CabinetClient({ userName }: { userName: string }) {
           </button>
         </div>
         <p className="mt-2 text-xs text-slate-400">
-          Tip: add both Dolo 650 and Calmol Plus (or Coldrid) to see the duplicate-ingredient detector in action.
+          Tip: add two medicines that share an active ingredient to see the duplicate-ingredient detector in action.
         </p>
       </Card>
 

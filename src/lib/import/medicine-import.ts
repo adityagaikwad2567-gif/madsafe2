@@ -357,7 +357,9 @@ export function validateRecords(rows: RawRecord[]): PreviewResult {
         verification,
         data_confidence: confidenceRaw as "high" | "medium" | "low",
         verification_notes: str(row.verification_notes),
-        record_kind: str(row.record_kind)?.toLowerCase() === "real" ? "real" : "demo",
+        // Real imports default to 'real'. Only an explicit record_kind=demo
+        // in the file is treated as demo (and is purged on the next boot).
+        record_kind: str(row.record_kind)?.toLowerCase() === "demo" ? "demo" : "real",
         ingredients,
         last_updated: lastUpdated,
       },

@@ -72,7 +72,7 @@ export function HomeHero() {
               <div className="absolute inset-4 rounded-xl border-2 border-teal-400/40" />
             </div>
           </div>
-          <p className="mt-3 text-center text-xs text-navy-200">Demo pack: Dolo 650 — verified record</p>
+          <p className="mt-3 text-center text-xs text-navy-200">Scan results come from the connected verified database</p>
         </div>
       </div>
     </section>

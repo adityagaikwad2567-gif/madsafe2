@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
 import { flushSnapshot } from "@/lib/db/persistence";
+import { invalidateMatchIndex } from "@/lib/medicine-matching";
 import { getCurrentUser } from "@/lib/auth";
 import {
   parseCsv, parseExcel, parseJson, validateRecords, commitRecords, slugify,
@@ -97,7 +98,10 @@ export async function POST(req: NextRequest) {
   }
 
   const result = commitRecords(preview, user.email, filename, format);
-  if (result.imported > 0 || result.updated > 0) flushSnapshot();
+  if (result.imported > 0 || result.updated > 0) {
+    flushSnapshot();
+    invalidateMatchIndex();
+  }
   return NextResponse.json({ result });
 }
 

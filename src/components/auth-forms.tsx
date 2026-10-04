@@ -102,11 +102,10 @@ export function AuthForms({
 
       <div className="mt-5 rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-500">
         <p className="flex items-center gap-1.5 font-semibold text-navy-900">
-          <ShieldCheck size={13} className="text-teal-600" /> Demo accounts
+          <ShieldCheck size={13} className="text-teal-600" /> Admin access
         </p>
-        <p className="mt-1">User — demo@medsafe.local · Demo@1234</p>
         {demoAdmin ? (
-          <p>
+          <p className="mt-1">
             Admin — {demoAdmin.email} · {demoAdmin.password}
           </p>
         ) : null}

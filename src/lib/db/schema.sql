@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS medicines (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
   slug              TEXT NOT NULL UNIQUE,
   name              TEXT NOT NULL,
-  record_kind       TEXT NOT NULL DEFAULT 'demo' CHECK (record_kind IN ('demo','real')), -- demo = clearly-labelled prototype data
+  record_kind       TEXT NOT NULL DEFAULT 'real' CHECK (record_kind IN ('demo','real')), -- 'real' = imported/verified dataset record
   brand_name        TEXT,
   generic_name      TEXT,
   form              TEXT,
@@ -173,7 +173,17 @@ CREATE TABLE IF NOT EXISTS translations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_medicines_name ON medicines(name);
+CREATE INDEX IF NOT EXISTS idx_medicines_brand   ON medicines(brand_name);
+CREATE INDEX IF NOT EXISTS idx_medicines_generic ON medicines(generic_name);
+CREATE INDEX IF NOT EXISTS idx_medicines_verif   ON medicines(verification);
+CREATE INDEX IF NOT EXISTS idx_medicines_source  ON medicines(source_id);
+CREATE INDEX IF NOT EXISTS idx_mi_medicine    ON medicine_ingredients(medicine_id);
 CREATE INDEX IF NOT EXISTS idx_mi_ingredient  ON medicine_ingredients(ingredient_id);
+CREATE INDEX IF NOT EXISTS idx_warnings_med   ON warnings(medicine_id);
+CREATE INDEX IF NOT EXISTS idx_inter_a        ON interactions(ingredient_a);
+CREATE INDEX IF NOT EXISTS idx_inter_b        ON interactions(ingredient_b);
+CREATE INDEX IF NOT EXISTS idx_scan_user      ON scan_history(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_usermed_user   ON user_medicines(user_id);
 
 CREATE TABLE IF NOT EXISTS search_stats (
   medicine_id INTEGER PRIMARY KEY REFERENCES medicines(id) ON DELETE CASCADE,

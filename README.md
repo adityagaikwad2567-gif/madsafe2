@@ -43,31 +43,33 @@ npm install          # install dependencies
 npm run dev          # start on http://localhost:3000
 ```
 
-The SQLite database (`medsafe.db`) is created and **seeded automatically** on first boot with a clearly-labelled demo
-dataset (15 medicines, warnings, interactions, admin + demo users, sample report). Expiry demo dates are generated
-relative to today, so the near-expiry reminder and expired-medicine warning are always demonstrable.
+The SQLite database (`medsafe.db`) is created on first boot. **No fake data is ever seeded.** Boot order:
+restore the latest cloud snapshot → purge any legacy demo rows (idempotent, self-healing after snapshot merges) →
+seed only safety-content translations (हिंदी/मराठी) and the admin account below. A fresh database starts with
+**zero medicines** — real records enter through the admin CSV/Excel/JSON/manual import pipeline so every record
+carries a source and verification status.
 
-Demo accounts (also shown on the login page):
+Admin account (also shown as a hint on the login page unless `HIDE_DEMO_HINTS=1`):
 
 | Role | Email | Password |
 | --- | --- | --- |
 | Admin (live site) | `adityagaikwad2567@gmail.com` | set via the `ADMIN_PASSWORD` env var in Vercel — never committed here |
 | Admin (local dev) | `admin@medsafe.local` | `Admin@1234` |
-| User | `demo@medsafe.local` | `Demo@1234` |
 
-> Change the admin password before any demo/deployment by setting `ADMIN_PASSWORD` (see §6) **before first boot**, or
+> Change the admin password before any deployment by setting `ADMIN_PASSWORD` (see §6) **before first boot**, or
 > via the admin panel once logged in.
 
-### Try these demo flows
+### Try these flows with imported data
 
-1. **Duplicate ingredient detection** — login as the demo user, open **My Cabinet**, add *Dolo 650* and *Calmol Plus*
-   (or *Coldrid*). The orange **Duplicate Active Ingredient Detected** banner appears immediately.
-2. **Drowsiness & driving alert** — scan/search *Coldrid* or *Alerzo* and open the profile.
-3. **Expiry flow** — add *Coldrid* (demo pack date is near/past) to the cabinet, or open the *Coldrid* profile.
-4. **Honest uncertainty** — Scanner → “Try the ‘unclear image’ demo”. MedSafe never fakes 100% confidence; unknown
-   barcodes and blurry images return the standard “could not be confidently identified” message.
+1. **Import real records** — login as admin → Data → Import → download a template, fill it with records that have
+   real `source_name` + `source_url` + `last_updated`, preview, confirm. Search/scan now resolve against them.
+2. **Duplicate ingredient detection** — import two products sharing an active ingredient, add both to **My Cabinet**.
+   The orange **Duplicate Active Ingredient Detected** banner appears immediately.
+3. **Expiry flow** — import (or edit) a record whose pack expiry is past or within 90 days and open the profile.
+4. **Honest uncertainty** — scan an unknown barcode or unreadable image. MedSafe never fakes 100% confidence;
+   it returns the standard “could not be confidently identified” message instead of guessing.
 5. **MedSafe AI refusal** — on `/ai`, ask about a non-existent medicine: it refuses instead of inventing.
-6. **Admin review** — login as admin → review the seeded report, toggle a medicine's verification, edit/add medicines.
+6. **Admin review** — login as admin → toggle a medicine's verification, review sources, edit/add medicines.
 
 ## 4. Environment variables
 
@@ -76,7 +78,7 @@ Copy `.env.example` to `.env.local` and adjust. **No secrets are hard-coded and 
 ```ini
 # Admin account seeded on first boot
 ADMIN_EMAIL=adityagaikwad2567@gmail.com
-ADMIN_PASSWORD=change-me-before-demo
+ADMIN_PASSWORD=change-me-before-deploy
 
 # SQLite database file location (optional)
 MEDSAFE_DB_PATH=./medsafe.db
@@ -111,9 +113,9 @@ src/
     api/                      # REST route handlers (see §8)
   components/                 # UI + client features
   lib/
-    db/                       # schema.sql, client, demo seed
+    db/                       # schema.sql, client, boot seed (translations+admin) + demo purge
     safety-engine.ts          # Deterministic rules (warnings, expiry, duplicates, interactions)
-    scan-pipeline.ts          # Identification pipeline (demo OCR/barcode)
+    scan-pipeline.ts          # Identification pipeline (real OCR/barcode via matching engine)
     ar-scene.ts               # AR scene builder (deterministic label zones)
     rag.ts                    # Retrieval + grounded answer composition
     auth.ts                   # Sessions, hashing, validation
@@ -205,7 +207,7 @@ Full request/response documentation: [`docs/API.md`](docs/API.md).
 4. **Verify**: new sources start as `pending`. A reviewer checks the linked document, then marks the source
    verified/rejected in Admin → Data → Sources. Medicine records carry their own
    `verification_status` + `verification_notes` + `data_confidence` (high/medium/low), stamped by the reviewer.
-5. **Display**: every medicine page shows a **Verified / Demo / Unverified Information** badge, the confidence
+5. **Display**: every medicine page shows a **Verified / Unverified Information** badge, the confidence
    level, a clickable source (URL or document name + publication date), last-updated date, reviewer, and notes.
    Missing facts render as “Information not available in the verified database.” — never filled with guesses.
 
@@ -217,15 +219,16 @@ Full request/response documentation: [`docs/API.md`](docs/API.md).
 - source required — `source_name` + `source_url` (document_name optional), or `source_id` of an existing source
 - `last_updated` required, `YYYY-MM-DD`
 - `verification_status` required ∈ `verified \| unverified`; `data_confidence` ∈ `high \| medium \| low` (optional, defaults by status)
-- `record_kind` ∈ `demo \| real` (controls the Demo Information badge)
+- `record_kind` ∈ `demo \| real` — every import/admin insert writes `real`; `demo` only exists so legacy rows can
+  be identified and purged at boot
 - dates `YYYY-MM-DD`; lists via `;`, `\|` or newlines; booleans `true/false/yes/no/1/0`
 - duplicate detection: slug → barcode → name+strength+form; duplicates become updates
 - max 500 rows/batch; every rejection includes `{row, field, message}` for the error report
 
-> **Data honesty note:** the bundled dataset is a clearly-labelled **demo** dataset (`record_kind='demo'`).
-> Fact patterns follow public label references (CDSCO consumer-label patterns, WHO EML) so the product flows are
-> realistic, but brand/manufacturer strings are placeholders and nothing here is an official medical database.
-> Import real records via the admin CSV/Excel/JSON pipeline with their own sources, then verify them.
+> **Data honesty note:** MedSafe ships with **no bundled medicine records**. The boot purge removes the legacy
+> demo dataset (and keeps it out even when an older cloud snapshot merges back in). Every medicine you see was
+> imported through the admin CSV/Excel/JSON pipeline with its own source, or added manually with one.
+> Nothing in this app is an official medical database.
 
 ### Admin verification checklist
 
@@ -243,7 +246,7 @@ Full request/response documentation: [`docs/API.md`](docs/API.md).
 npm install
 npm run dev              # development
 npm run build && npm start   # production build
-npm run db:seed          # create + seed the database manually
+npm run db:seed          # create schema + seed translations/admin (no medicine data)
 npm run db:backup        # consistent snapshot -> medsafe-backup-<date>.db
 npm run db:reset         # delete the DB (fresh reseed on next boot)
 npm run typecheck        # tsc --noEmit
@@ -281,11 +284,14 @@ bundle. Uptime monitoring: point any checker at `GET /api/health` (200 + `databa
 
 - Full navigation & responsive, mobile-first UI (navy/teal design system, CycleSafe pink identity)
 - **AR Medicine Explainer** (`/ar`): viewfinder that projects verified label zones — name, ingredients, warning zone,
-  expiry state (green/amber/red), storage, no-driving icon — onto the demo pack or a live camera frame, with
+  expiry state (green/amber/red), storage, no-driving icon — onto a live camera frame, with
   tap-for-details and an honest low-confidence fallback for unclear frames
-- Scanner: camera (`getUserMedia` + fallback), image upload, barcode/QR (browser `BarcodeDetector` + manual entry),
-  manual search, voice search (`SpeechRecognition` + fallback) — with demo OCR simulation
-- Identification pipeline with staged UI, honest confidence (never 100%) and uncertainty fallback
+- Scanner: camera (`getUserMedia` + fallback), image upload, barcode/QR (browser `BarcodeDetector` + ZXing
+  fallback + manual entry), manual search, voice search (`SpeechRecognition` + fallback) — with real on-device
+  OCR (tesseract.js; the image never leaves the device) and editable extracted text
+- Identification pipeline with staged UI, honest confidence (never 100%) and uncertainty fallback;
+  text normalization (strength spacing, dosage-form wording, audited OCR misspelling fixes) + ranked
+  multi-candidate disambiguation via the shared `medicine-matching` engine
 - Medicine profile: identity, ingredients, uses, precautions, side effects, storage, expiry, prescription/drowsiness/
   driving/pregnancy/breastfeeding/menstrual awareness, source + last updated + verified-by
 - Safety indicator (🟢🟡🟠🔴) driven 100% by the deterministic rule engine on database flags
@@ -299,12 +305,11 @@ bundle. Uptime monitoring: point any checker at `GET /api/health` (200 + `databa
 - Auth (bcrypt + sessions), profile with privacy settings and full data deletion
 - Anonymous safety reporting + admin review (status, notes, resolve)
 - Admin dashboard: stats cards, most-searched chart, medicine CRUD, verification workflow
-- Seeded, clearly-labelled demo dataset covering all required scenarios
+- Empty-by-default database: boot purge guarantees no fake medicine data, demo logins or sample reports
 
 ### Prototype simulations (production would replace)
 
-- OCR is simulated (text heuristics + demo barcodes); plug in Google Vision/Tesseract via `MEDSAFE_OCR_API_KEY`
-- AR zone projection uses stored/demo coordinates on a stylized pack; production would combine real OCR with
+- AR zone projection uses stored coordinates on a stylized pack; production would combine real OCR with
   on-device text recognition to locate regions in the lens
 - Offline profile copies show safety content as saved; expired/near-expiry statuses render from the stored date —
   always re-confirm with a pharmacist when offline

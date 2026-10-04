@@ -89,8 +89,7 @@ export function ProfileClient({ user }: { user: SessionUser }) {
               <input type="checkbox" checked={anonymousHistory} onChange={(e) => setAnonymousHistory(e.target.checked)} className="h-4 w-4 accent-teal-600" />
             </label>
             <p className="text-xs text-slate-400">
-              Note: this prototype always stores scans anonymously server-side; the toggle demonstrates the privacy
-              control UI for the production build.
+              Note: scans are stored anonymously on the server; this toggle controls whether new scans are linked to your account.
             </p>
           </div>
         </Card>

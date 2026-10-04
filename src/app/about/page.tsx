@@ -37,11 +37,11 @@ const FUTURE = [
 ];
 
 const AR_POINTS = [
-  "Viewfinder with live camera or the labelled demo pack — no setup needed",
+  "Viewfinder with live camera plus name-based identification from the connected database",
   "Projected zones: medicine name, active ingredients, warning zone, expiry state, storage, no-driving icon",
   "Every zone is generated from the verified record and the same deterministic rule engine as the profile page",
   "Tap any highlighted zone for a plain-language explanation; expiry state colours the box (green / amber / red)",
-  "Unclear frame → honest low-confidence fallback on the demo pack instead of a forced identification",
+  "Unclear frame → honest low-confidence message instead of a forced identification",
   "Privacy-friendly: frames are processed in-session; only the query string is stored in scan history",
 ];
 
@@ -51,7 +51,7 @@ const STACK = [
   ["Database", "SQLite (better-sqlite3) — PostgreSQL-ready schema"],
   ["Auth", "Session cookies + bcrypt password hashing"],
   ["AI", "RAG pipeline over the verified DB (LLM-ready adapter)"],
-  ["Scanning", "getUserMedia camera + BarcodeDetector + demo OCR"],
+  ["Scanning", "getUserMedia camera + BarcodeDetector + on-device OCR"],
 ];
 
 export default function AboutPage() {
@@ -108,9 +108,9 @@ export default function AboutPage() {
           <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-semibold text-teal-800">New</span>
         </div>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
-          What began as a future concept is now a demoable feature: point your camera at a medicine pack and MedSafe
-          projects labelled highlight zones — name, ingredients, warnings, expiry state and the no-driving icon —
-          directly onto the viewfinder, all driven by the verified database and the deterministic safety engine.
+          Identify a medicine and MedSafe projects labelled highlight zones — name, ingredients, warnings, expiry state
+          and the no-driving icon — directly onto the viewfinder, all driven by the connected database and the
+          deterministic safety engine.
         </p>
         <ul className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
           {AR_POINTS.map((p) => (

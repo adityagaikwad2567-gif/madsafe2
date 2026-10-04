@@ -54,5 +54,6 @@ user chose to sign them; no health data is collected.
 - Never import a row as `verified` without checking its source document.
 - Never fill missing medical facts by guessing — the UI renders
   "Information not available in the verified database." instead.
-- The demo dataset is labelled `record_kind = demo`; keep real records separate and sourced.
+- The database ships empty: only imported/manual records exist, all labelled `record_kind = real`.
+  Legacy `record_kind = demo` rows are purged at boot and must never be re-added.
 - Barcode/QR identification is an *aid* — the app never claims authenticity.

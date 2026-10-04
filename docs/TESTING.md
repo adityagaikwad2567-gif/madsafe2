@@ -1,7 +1,32 @@
 # MedSafe Testing Report
 
 Date: 2026-09-13 (local battery) · **Live re-run: 2026-09-15 against the production deployment on Vercel**
+**Healthcare-QA batch: 2026-10-04 — data-flow, matching-engine & fake-data purge**
 **Live URL:** https://medsafe-adityagaikwad2567-gifs-projects.vercel.app (alias: https://medsafe-one.vercel.app)
+
+## −1. Healthcare-QA batch (2026-10-04) — ALL PASS
+
+Environment: production build (`next build` + `next start`), fresh SQLite database.
+
+| Check | Result |
+| --- | --- |
+| Boot with **empty DB**: `/api/medicines` | ✅ `{success:true,count:0,medicines:[]}` — no seeded demo rows |
+| Admin login → manual import (record_kind) | ✅ `{imported:1}`, record stored as `record_kind:'real'` |
+| Messy OCR query `Paracitamol 500mg Tab` → `/api/medicines/search` | ✅ normalized to `paracetamol 500 mg tablet`, `identified`, score 1 |
+| `POST /api/medicines/identify` (misspelling) | ✅ camelCase contract, full medicine + source returned |
+| Ambiguity: two paracetamol strengths, query `paracetamol` | ✅ `matchStatus:'ambiguous'`, both candidates returned for user pick |
+| `POST /api/ocr` (conf 0.82 / 0.2) | ✅ match / honest `LOW_CONFIDENCE` refusal |
+| `POST /api/barcode` unknown code | ✅ `MEDICINE_NOT_FOUND` + “barcode cannot prove authenticity” |
+| `POST /api/scan` manual + barcode modes | ✅ `identified` / honest `not_found` with staged steps |
+| Detail / warnings / interactions APIs | ✅ structured contract; honest empty notes (“not available… does not mean no interactions”) |
+| Unknown slug / unknown search | ✅ HTTP 404 / `MEDICINE_NOT_FOUND` |
+| AI ask (grounded / unknown) | ✅ DB-grounded answer with source; refusal otherwise |
+| Internal index fields (`nameNorm`…) in API responses | ✅ stripped from search/list/identify/ocr |
+| Pages `/`, `/medicines`, profile, `/login`, `/scan`, `/about` | ✅ all 200, zero demo copy in served HTML |
+| **Demo-data purge**: injected fake demo medicine + demo user → reboot | ✅ purged 20 rows (demo rows + dead translation keys), audit `demo.purge` written, 2 real records + 216 safety translations untouched, search/login still green |
+| Quality gates | ✅ `tsc --noEmit` 0 errors · ESLint 0 errors · `next build` success |
+
+---
 
 ## 0. Live production smoke test (2026-09-15) — ALL PASS
 
@@ -37,7 +62,7 @@ Method: automated curl/Node assertion battery against the running production ser
 | Auth & authorization (validation, enum, brute-force, lockout, admin guard) | 12 | ✅ 12/12 |
 | User lifecycle (register → profile → cabinet → duplicates → reminders → report → AI → logout → delete) | 14 | ✅ 14/14 |
 | Admin flows (stats, report review, user deactivation/reactivation, import templates) | 9 | ✅ 9/9 |
-| Data quality gates (import validation, demo labels, source display) | verified earlier batch | ✅ pass |
+| Data quality gates (import validation, trust labels, source display) | verified earlier batch | ✅ pass |
 | Static analysis (`tsc --noEmit`, ESLint) | whole repo | ✅ 0 errors |
 | Production build (`next build`, 34 routes) | — | ✅ success |
 
@@ -78,15 +103,17 @@ Method: automated curl/Node assertion battery against the running production ser
 
 ## 4. Performance notes
 
-- Production build: 34 routes, static generation where possible; server start ≈1s.
-- Search is SQL `LIKE` over indexed `name/brand_name/generic_name` + joins; sub-50 ms locally at 15 medicines.
+- Production build: 14 pages + 28 API routes, static generation where possible; server start ≈1s.
+- Search runs the shared matching engine over a 15 s TTL in-process index; SQL `LIKE` fallback for
+  filters over indexed `name/brand_name/generic_name`; sub-50 ms locally.
 - Rate limiter memory is bounded (10k keys, reaped per call).
 - Session GC runs on login; expired cookies are rejected server-side on every request.
 
 ## 5. Known limitations (by design, documented in README)
 
-- OCR is a simulation (demo barcodes + text heuristics); `MEDSAFE_OCR_API_KEY` marks the future integration.
+- OCR runs on-device (tesseract.js) — speed depends on the device; very noisy images are refused
+  (`LOW_CONFIDENCE`) rather than guessed.
 - Offline PWA copies show safety text as saved; always re-confirm expiry with a pharmacist.
 - Multi-instance deployments need the Redis swap in `src/lib/rate-limit.ts` (single-node profile today).
-- Bundled medicine records are clearly-labelled demo data; real records must enter via the admin import
-  pipeline with cited sources and the verification workflow.
+- The database starts empty — real records must enter via the admin import pipeline with cited sources
+  and the verification workflow. Snapshot merge is additive: purged demo rows self-heal on every boot.

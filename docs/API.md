@@ -65,29 +65,70 @@ Search + filters:
 | `tag=` | engine tag filter (e.g. `drowsiness`, `rx`) |
 | `limit` | page size (default 24, max 100) |
 
-`200` → `{ medicines: [...], facets: { categories, manufacturers, ingredients }, total }`.
-Every row carries `verification` (verified/unverified) and `record_kind` (demo/real).
+`200` → `{ success, count, medicines: [...], facets: [...] }`.
+Every row carries `verification` (verified/unverified) and `record_kind` (real; `demo` only exists as a
+legacy marker that the boot purge removes). Rows returned for a query also carry `matchScore`/`matchMethod`.
+
+### `GET /api/medicines/search?q=…`
+Dedicated normalized search (same engine as the scanner): lowercasing, strength spacing (`500mg` → `500 mg`),
+dosage-form unification, an audited OCR-misspelling map (`paracitamol` → `paracetamol`) and bounded typo
+tolerance, then ranked matching against the connected database only.
+
+- `200` → `{ success: true, count, query, normalizedQuery, matchQuality: "identified"|"ambiguous", topScore, medicines: [...] }`.
+  `matchQuality: "ambiguous"` means several records match about equally — the UI asks the user to pick;
+  the engine never silently guesses.
+- `404` → `{ success: false, code: "MEDICINE_NOT_FOUND", message, query, normalizedQuery, medicines: [] }`.
+- Missing `q` → `400 BAD_REQUEST`.
+
+### `POST /api/medicines/identify`
+Body: `{ "query"?, "barcode"?, "ocrConfidence"? }` (typed text, OCR output or a decoded barcode).
+
+- `200` `{ success: true, matchStatus: "identified", medicine: {…full record + source…}, candidates: [...], matchMethod, matchScore }`.
+- `200` `{ success: true, matchStatus: "ambiguous", candidates: [...] }` — user picks.
+- `404` `{ success: false, code: "MEDICINE_NOT_FOUND" }` · `200` `{ code: "LOW_CONFIDENCE" }` when
+  `ocrConfidence < 0.35` (noisy OCR is refused, never guessed).
 
 ### `GET /api/medicines/{slug}`
-Full record: identity, ingredients, uses/precautions/side effects/contraindications, storage,
-regulatory fields, menstrual note, expiry, **source block** (name, URL, document, publication date,
-last checked), **verification block** (status, confidence, notes, reviewer, last updated) and
-deterministic safety cards. `404` for unknown slugs.
+`200` → `{ success: true, medicine: {…, safety-flags, verification block, source block…}, safety: {overall, cards, expiry} }`.
+Legacy snake_case fields are still present for existing consumers. `404` → `{ success: false, code: "MEDICINE_NOT_FOUND" }` for unknown slugs.
+
+### `GET /api/medicines/{slug}/warnings`
+`200` → `{ success, medicine, warnings: [{level,title,body}], precautions, contraindications, pregnancyCaution, breastfeedingCaution, note }`.
+The `note` states honestly when nothing is recorded — absence of warnings is never presented as “safe”.
+
+### `GET /api/medicines/{slug}/interactions?with={other-slug}`
+Deterministic interaction data from the `interactions` table only. Without `with=`: rows involving this
+medicine's ingredients. With `with=`: pairwise checks across the two ingredient sets (duplicate-ingredient
+warnings included). `200` → `{ success, medicine, interactions: [...], note }`.
 
 ---
 
-## Scanner
+## Scanner & identification
 
 ### `POST /api/scan`
-Body: `{ "mode": "camera|upload|barcode|manual|voice|demo", "query"?, "barcode"? }`.
+Body: `{ "mode": "camera|upload|barcode|manual|voice", "query"?, "barcode"?, "ocrConfidence"? }`.
 Rate limit: 30/5min (user or IP). Runs the identification pipeline and records privacy-friendly history.
 
-- Match → `{ match: { slug, name, confidence } }` — confidence is honest, never 100%.
-- No confident match → `{ match: null, reason: "uncertain" }` with guidance to retry/manual search.
-- Unknown barcode → `{ match: null, reason: "not_found" }`.
+- Match → `{ status: "identified", message, confidence, candidates: [...], method, steps }` — confidence is
+  honest, never 100%.
+- Unclear input → `{ status: "uncertain", message, candidates, steps }` with guidance to retry/manual search.
+- Unknown barcode → `{ status: "not_found", message, … }` (a barcode never proves authenticity).
 
-The scan pipeline is OCR-simulation by design (see §Scanner in README). No external OCR call is made;
-`MEDSAFE_OCR_API_KEY` is reserved for the future integration point.
+OCR runs **on-device** in the browser (tesseract.js — the image never leaves the device); barcode decoding
+uses the browser `BarcodeDetector` API with a ZXing fallback. Both feed the shared matching engine through
+the endpoints below. No external OCR call is made; `MEDSAFE_OCR_API_KEY` is reserved for a future
+server-side provider.
+
+### `POST /api/ocr`
+Body: `{ "text": "…", "ocrConfidence": 0.82? }` — normalizes recognized text and matches it against the
+medicine table. `200` → `{ success, matchStatus, normalizedText, ocrConfidence, candidates, topScore }`;
+`{ success: false, code: "LOW_CONFIDENCE" }` when confidence < 0.35;
+`{ success: false, code: "MEDICINE_NOT_FOUND" }` with `recognizedText`/`normalizedText` echo.
+
+### `POST /api/barcode`
+Body: `{ "code": "8901234567890" }` — database mapping for an already-decoded barcode/QR value.
+`200` → `{ success: true, medicine: {…} }` or `404`/`{ success: false, code: "MEDICINE_NOT_FOUND" }` with
+the honest message that a barcode cannot prove a medicine is genuine.
 
 ---
 
@@ -145,3 +186,5 @@ Required per row: `medicine_name`, `generic_name`, `active_ingredients` (≥1),
 `source_name` + `source_url`, `last_updated` (YYYY-MM-DD), `verification_status` ∈ verified/unverified.
 Rejected rows return `{ row, field, message }` triples (downloadable as an error report CSV in the UI).
 Duplicates (slug/barcode/name+strength+form) update the existing record. Max 500 rows/batch.
+Committed rows are always stored as `record_kind = "real"` (the legacy `demo` kind exists only so the
+boot purge can delete old fake rows).

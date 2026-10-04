@@ -4,8 +4,10 @@ Engine: **SQLite** via `better-sqlite3` (zero-setup, synchronous, ideal for the 
 The schema is deliberately PostgreSQL-mappable — types and constraints were written so a future `pg`
 migration is mostly mechanical (see "PostgreSQL migration" below).
 
-Boot behaviour: `src/lib/db/index.ts` creates all tables (`schema.sql`), runs in-place column migrations,
-and `src/lib/db/seed.ts` seeds demo data + translations on first access (and re-syncs translations every boot).
+Boot behaviour (`src/instrumentation.ts`): restore the latest Blob snapshot → purge legacy fake demo rows
+(`src/lib/db/demo-purge.ts`, idempotent) → `src/lib/db/index.ts` creates all tables (`schema.sql`), runs
+in-place column migrations → `src/lib/db/seed.ts` seeds safety translations + the env-driven admin account
+(no medicine data is ever seeded; translations re-sync every boot).
 
 ## Entity map (18 tables)
 
@@ -79,8 +81,9 @@ Back up on a schedule in production (daily cron is sufficient for the demo profi
 
 - **Boot** (`src/instrumentation.ts`): the latest snapshot (`dbsnapshots/medsafe-latest.db`) is
   downloaded from the private Blob store `medsafe-data`, integrity-checked (`SQLite format 3`
-  magic, minimum size), and written to the DB path **before** `seedIfEmpty()` runs — so imported
-  records are never overwritten by demo data. Seeding only fills an empty database.
+  magic, minimum size), and written to the DB path **before** purging/seeding runs — so imported
+  records are never lost. `purgeDemoData()` then removes any fake demo rows an older snapshot may
+  carry (they only exist as `record_kind='demo'` legacy rows); seeding adds only translations + admin.
 - **Write** (`flushSnapshot()`): every mutating API route (imports, medicine/source/ingredient/
   interaction CRUD, registration, reports, cabinet, reminders, scans, admin actions) calls it after
   commit. Concurrent flushes coalesce into one in-flight upload; failures are logged, never thrown.

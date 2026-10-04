@@ -22,7 +22,7 @@ pharmacist before starting, stopping or changing any medicine.
 ## Medicines database (`/medicines`)
 
 Search by brand, generic, ingredient, manufacturer or category; filter by prescription requirement;
-every profile shows its Verified / Demo / Unverified Information badge, confidence, source link and
+every profile shows its Verified / Unverified Information badge, confidence, source link and
 reviewer.
 
 ## My Cabinet (`/cabinet`)
